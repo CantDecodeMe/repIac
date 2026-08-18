@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 01 · Clasificador de modelos Cloud</title>
+  <link rel="stylesheet" href="styles/report.css">
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 01</p>
+      <h1>Clasificador de<br><em>modelos Cloud</em></h1>
+      <p class="report-lead">Prototipo de escritorio en Java para clasificar descripciones como IaaS, PaaS, SaaS o FaaS.</p>
+      <div class="header-tags">
+        <span>Java Swing</span><span>Regex</span><span>JDK 21</span><span>9/9 pruebas</span>
+      </div>
+    </header>
+
+    <section>
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y solución</h2>
+        <p>Se desarrolló <strong>cloud_models_classifier</strong>, una aplicación con interfaz gráfica que solicita nombre, apellido y una descripción de un servicio Cloud. El texto se analiza con expresiones regulares y reglas ponderadas; la categoría con mayor puntaje se presenta junto con las señales encontradas.</p>
+        <p>La solución permite reconocer los cuatro modelos solicitados sin usar un LLM para decidir la respuesta. Si ninguna categoría alcanza tres puntos, devuelve <em>No determinado</em> para evitar clasificaciones forzadas.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <div class="architecture">
+          <div><strong>Interfaz</strong><span>VentanaPrincipal</span><small>Captura datos y muestra el resultado.</small></div>
+          <b>→</b>
+          <div><strong>Validación</strong><span>Validador</span><small>Revisa nombre, apellido y descripción.</small></div>
+          <b>→</b>
+          <div><strong>Lógica</strong><span>ClasificadorCloud</span><small>Normaliza, puntúa y clasifica.</small></div>
+        </div>
+        <p class="caption">La GUI no contiene las reglas del clasificador; cada responsabilidad permanece separada y los errores de entrada se manejan mediante una excepción específica.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">03</div>
+      <div>
+        <h2>Compilación con Java SDK</h2>
+        <p>Se utilizó <strong>Microsoft OpenJDK 21</strong>. El JDK o Java SDK aporta <code>javac</code>, que compila los archivos <code>.java</code> a bytecode <code>.class</code>, y <code>java</code>, que inicia la JVM y ejecuta el programa.</p>
+        <pre><code>javac -encoding UTF-8 -d bin src\Main.java src\ui\*.java src\logica\*.java src\pruebas\*.java
+java -cp bin Main
+java -cp bin pruebas.PruebasClasificador</code></pre>
+        <div class="version-strip"><span><b>Compilador</b> javac 21.0.12</span><span><b>Runtime</b> OpenJDK 21.0.12 LTS</span></div>
+      </div>
+    </section>
+
+    <section class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Funcionamiento</h2>
+        <ol class="process-list">
+          <li><span>1</span><p><strong>Validar.</strong> Se rechazan campos vacíos, nombres con caracteres inválidos y descripciones demasiado cortas.</p></li>
+          <li><span>2</span><p><strong>Normalizar.</strong> El texto pasa a minúsculas y se eliminan acentos para comparar variantes equivalentes.</p></li>
+          <li><span>3</span><p><strong>Puntuar.</strong> Métodos independientes evalúan señales de IaaS, PaaS, SaaS y FaaS mediante Regex con pesos.</p></li>
+          <li><span>4</span><p><strong>Mostrar.</strong> La GUI presenta la categoría, los cuatro puntajes y las señales que explican la decisión.</p></li>
+        </ol>
+        <figure class="evidence-figure">
+          <img src="fotos/evidencia-clasificador.png" alt="Interfaz Java mostrando una clasificación FaaS con puntajes y señales detectadas.">
+          <figcaption>Evidencia de ejecución: el caso de una función activada al subir una imagen fue clasificado como FaaS.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">05</div>
+      <div>
+        <h2>Pruebas realizadas</h2>
+        <p>Se automatizaron nueve casos de clasificación y cinco validaciones. La siguiente tabla resume cinco entradas representativas solicitadas en la actividad.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Descripción resumida</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td>Máquinas virtuales, almacenamiento y redes configurables</td><td>IaaS</td><td>IaaS</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Desplegar una app sin administrar servidores</td><td>PaaS</td><td>PaaS</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Correo en navegador con suscripción mensual</td><td>SaaS</td><td>SaaS</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Función ejecutada al subir una imagen</td><td>FaaS</td><td>FaaS</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Texto sin relación con servicios Cloud</td><td>No determinado</td><td>No determinado</td><td><span class="ok">Correcto</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="result-callout"><strong>Resultado final</strong><span>9 de 9 clasificaciones correctas</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">06</div>
+      <div>
+        <h2>Ajustes y conclusión</h2>
+        <p>Las pruebas mostraron que mencionar “servidores” dentro de la frase <em>sin administrar servidores</em> podía favorecer incorrectamente a IaaS. Se agregó una regla de negación que resta ese puntaje. También se dio mayor peso a señales de eventos para distinguir FaaS cuando aparece la palabra “almacenamiento”.</p>
+        <p>El prototipo cumple el alcance de GUI, validación, separación de responsabilidades, Regex y pruebas. Ya incorpora normalización y scores como base de NLP. Como siguiente iteración quedan una CLI para texto libre y técnicas adicionales como tokenización, stopwords y lematización.</p>
+      </div>
+    </section>
+
+    <aside class="ai-note">
+      <strong>Uso responsable de IA</strong>
+      <p>La IA apoyó la estructura inicial y la revisión. La solución se comprendió, ajustó y validó con casos automatizados; la responsabilidad de las decisiones y resultados permaneció en el estudiante.</p>
+    </aside>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+      <a href="https://ubiquitous.udem.edu/~raulms/content/SC3705/.tareas/Ejercicio-01.pdf">Consultar documento original ↗</a>
+    </footer>
+  </main>
+</body>
+</html>
