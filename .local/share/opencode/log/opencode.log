@@ -1,0 +1,163 @@
+timestamp=2026-08-18T15:04:49.178Z level=INFO run=9803a65b message="creating instance" directory=/home/iac-666660
+timestamp=2026-08-18T15:04:49.179Z level=INFO run=9803a65b message=fromDirectory directory=/home/iac-666660
+timestamp=2026-08-18T15:04:49.253Z level=INFO run=9803a65b message=bootstrapping directory=/home/iac-666660
+timestamp=2026-08-18T15:04:49.277Z level=INFO run=9803a65b message=loading path=/home/iac-666660/.config/opencode/config.json
+timestamp=2026-08-18T15:04:49.287Z level=INFO run=9803a65b message=loading path=/home/iac-666660/.config/opencode/opencode.json
+timestamp=2026-08-18T15:04:49.287Z level=INFO run=9803a65b message=loading path=/home/iac-666660/.config/opencode/opencode.jsonc
+timestamp=2026-08-18T15:04:49.528Z level=INFO run=9803a65b message=loading path=/home/iac-666660/.opencode/opencode.json
+timestamp=2026-08-18T15:04:49.529Z level=INFO run=9803a65b message=loading path=/home/iac-666660/.opencode/opencode.jsonc
+timestamp=2026-08-18T15:04:49.609Z level=INFO run=9803a65b message="all LSPs are disabled"
+timestamp=2026-08-18T15:04:49.611Z level=INFO run=9803a65b message="all formatters are disabled"
+timestamp=2026-08-18T15:04:49.611Z level=INFO run=9803a65b message=init
+timestamp=2026-08-18T15:04:50.902Z level=INFO run=9803a65b message=init count=1
+timestamp=2026-08-18T15:04:50.980Z level=WARN run=9803a65b message="failed to initialize fff" error="Failed to init file picker: Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+timestamp=2026-08-18T15:04:51.000Z level=INFO run=9803a65b message="watcher backend" directory=/home/iac-666660 platform=linux backend=inotify
+timestamp=2026-08-18T15:04:51.022Z level=INFO run=9803a65b message="project copy refresh started" projectID=global
+timestamp=2026-08-18T15:04:51.023Z level=INFO run=9803a65b message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-08-18T15:04:51.051Z level=INFO run=9803a65b message="booting location services" directory=/home/iac-666660 workspaceID=undefined
+timestamp=2026-08-18T15:05:23.573Z level=INFO run=9803a65b message=created id=ses_fea98228affeEGVkHO1ICAA5vf slug=calm-falcon version=1.18.18 projectID=global directory=/home/iac-666660 path=home/iac-666660 workspaceID=undefined parentID=undefined title="New session - 2026-08-18T15:05:23.573Z" agent=plan model.id=big-pickle model.providerID=opencode metadata=undefined permission=undefined cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1787065523573 time.updated=1787065523573
+timestamp=2026-08-18T15:05:23.675Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=0
+timestamp=2026-08-18T15:05:23.695Z level=INFO run=9803a65b message="shell tool using shell" shell=/bin/bash
+timestamp=2026-08-18T15:05:23.764Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=true agent=title mode=primary
+timestamp=2026-08-18T15:05:23.815Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:05:23.838Z level=WARN run=9803a65b message="failed to initialize fff" error="Failed to init file picker: Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+timestamp=2026-08-18T15:05:23.876Z level=INFO run=9803a65b message="watcher backend" directory=/home/iac-666660 platform=linux backend=inotify
+timestamp=2026-08-18T15:05:23.881Z level=INFO run=9803a65b message="project copy refresh started" projectID=global
+timestamp=2026-08-18T15:05:23.882Z level=INFO run=9803a65b message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-08-18T15:05:23.914Z level=INFO run=9803a65b message="booting location services" directory=/home/iac-666660 workspaceID=undefined
+timestamp=2026-08-18T15:05:24.325Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_01567dde0002K6jUZhonVnKzH2
+timestamp=2026-08-18T15:05:24.326Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=plan mode=primary
+timestamp=2026-08-18T15:05:24.329Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:05:41.799Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=1
+timestamp=2026-08-18T15:05:41.801Z level=INFO run=9803a65b message="exiting loop" session.id=ses_fea98228affeEGVkHO1ICAA5vf
+timestamp=2026-08-18T15:06:35.804Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=0
+timestamp=2026-08-18T15:06:35.827Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_01568f79f002T25sbU7Ry8QEv6
+timestamp=2026-08-18T15:06:35.829Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=plan mode=primary
+timestamp=2026-08-18T15:06:35.831Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:06:43.059Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=1
+timestamp=2026-08-18T15:06:43.061Z level=INFO run=9803a65b message="exiting loop" session.id=ses_fea98228affeEGVkHO1ICAA5vf
+timestamp=2026-08-18T15:06:45.013Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=0
+timestamp=2026-08-18T15:06:45.034Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_015691b980018QOZ0om72RhLgJ
+timestamp=2026-08-18T15:06:45.034Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:06:45.037Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:06:49.421Z level=INFO run=9803a65b message="resolved path" arg=~/html resolved=/home/iac-666660/html
+timestamp=2026-08-18T15:06:49.422Z level=INFO run=9803a65b message="resolved path" arg=~/html resolved=/home/iac-666660/html
+timestamp=2026-08-18T15:06:49.422Z level=INFO run=9803a65b message="resolved path" arg=~ resolved=/home/iac-666660
+timestamp=2026-08-18T15:06:49.425Z level=INFO run=9803a65b message=evaluated permission=bash pattern="mkdir -p ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:49.425Z level=INFO run=9803a65b message=evaluated permission=bash pattern="chmod 755 ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:49.425Z level=INFO run=9803a65b message=evaluated permission=bash pattern="chmod 755 ~" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:49.425Z level=INFO run=9803a65b message=evaluated permission=bash pattern="chcon -t httpd_sys_content_t ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:49.503Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=1
+timestamp=2026-08-18T15:06:49.632Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_015692d21002Io6C3JqEGSlH4g
+timestamp=2026-08-18T15:06:49.634Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:06:49.636Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:06:51.755Z level=INFO run=9803a65b message=evaluated permission=bash pattern="ls -la ~/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:51.755Z level=INFO run=9803a65b message=evaluated permission=bash pattern="grep html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:51.756Z level=INFO run=9803a65b message=evaluated permission=bash pattern="ls -laZ ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:51.804Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=2
+timestamp=2026-08-18T15:06:51.897Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_01569361e002Ccm5svkg5RkzFK
+timestamp=2026-08-18T15:06:51.899Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:06:51.901Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:06:55.484Z level=INFO run=9803a65b message=evaluated permission=bash pattern="chcon -R -t httpd_sys_content_t ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:55.547Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=3
+timestamp=2026-08-18T15:06:55.600Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_0156944bd002yEEOJCrKovr4A7
+timestamp=2026-08-18T15:06:55.601Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:06:55.603Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:06:59.271Z level=INFO run=9803a65b message=evaluated permission=bash pattern="ls -laZ ~/html" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:06:59.348Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=4
+timestamp=2026-08-18T15:06:59.446Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_015695395002F203AoklOr0095
+timestamp=2026-08-18T15:06:59.447Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:06:59.449Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:07:06.011Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=5
+timestamp=2026-08-18T15:07:06.012Z level=INFO run=9803a65b message="exiting loop" session.id=ses_fea98228affeEGVkHO1ICAA5vf
+timestamp=2026-08-18T15:07:44.596Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=0
+timestamp=2026-08-18T15:07:44.626Z level=INFO run=9803a65b message=process session.id=ses_fea98228affeEGVkHO1ICAA5vf messageID=msg_0156a0459002rCe8qeam4GcFuD
+timestamp=2026-08-18T15:07:44.628Z level=INFO run=9803a65b message=stream providerID=opencode modelID=big-pickle session.id=ses_fea98228affeEGVkHO1ICAA5vf small=false agent=build mode=primary
+timestamp=2026-08-18T15:07:44.657Z level=INFO run=9803a65b message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:07:47.600Z level=INFO run=9803a65b message=loop session.id=ses_fea98228affeEGVkHO1ICAA5vf step=1
+timestamp=2026-08-18T15:07:47.603Z level=INFO run=9803a65b message="exiting loop" session.id=ses_fea98228affeEGVkHO1ICAA5vf
+timestamp=2026-08-18T15:33:14.344Z level=INFO run=711901dc message="creating instance" directory=/home/iac-615639
+timestamp=2026-08-18T15:33:14.346Z level=INFO run=711901dc message=fromDirectory directory=/home/iac-615639
+timestamp=2026-08-18T15:33:14.459Z level=INFO run=711901dc message=bootstrapping directory=/home/iac-615639
+timestamp=2026-08-18T15:33:14.518Z level=INFO run=711901dc message=loading path=/home/iac-615639/.config/opencode/config.json
+timestamp=2026-08-18T15:33:14.519Z level=INFO run=711901dc message=loading path=/home/iac-615639/.config/opencode/opencode.json
+timestamp=2026-08-18T15:33:14.522Z level=INFO run=711901dc message=loading path=/home/iac-615639/.config/opencode/opencode.jsonc
+timestamp=2026-08-18T15:33:14.543Z level=INFO run=711901dc message=loading path=/home/iac-615639/.opencode/opencode.json
+timestamp=2026-08-18T15:33:14.543Z level=INFO run=711901dc message=loading path=/home/iac-615639/.opencode/opencode.jsonc
+timestamp=2026-08-18T15:33:14.572Z level=INFO run=711901dc message="all LSPs are disabled"
+timestamp=2026-08-18T15:33:14.573Z level=INFO run=711901dc message="all formatters are disabled"
+timestamp=2026-08-18T15:33:14.573Z level=INFO run=711901dc message=init
+timestamp=2026-08-18T15:33:15.896Z level=INFO run=711901dc message=init count=1
+timestamp=2026-08-18T15:33:15.913Z level=ERROR run=711901dc message=failed ref=err_d638490f error="Error: Expected a string starting with \"ses\", got \"dummy\" (cause: Expected a string starting with \"ses\", got \"dummy\")" cause="Error: Expected a string starting with \"ses\", got \"dummy\"\n    at <anonymous> (/$bunfs/root/chunk-datjqaqc.js:25:10206)\n    at <anonymous> (/$bunfs/root/chunk-datjqaqc.js:33:21325)\n    at <anonymous> (/$bunfs/root/chunk-gzs24a6h.js:2:117469) {\n  [cause]: Error: Expected a string starting with \"ses\", got \"dummy\"\n}"
+timestamp=2026-08-18T15:33:15.942Z level=WARN run=711901dc message="failed to initialize fff" error="Failed to init file picker: Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+timestamp=2026-08-18T15:33:15.959Z level=INFO run=711901dc message="watcher backend" directory=/home/iac-615639 platform=linux backend=inotify
+timestamp=2026-08-18T15:33:15.963Z level=INFO run=711901dc message="project copy refresh started" projectID=global
+timestamp=2026-08-18T15:33:15.965Z level=INFO run=711901dc message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-08-18T15:33:16.045Z level=INFO run=711901dc message="booting location services" directory=/home/iac-615639 workspaceID=undefined
+timestamp=2026-08-18T15:42:23.389Z level=INFO run=afc1656c message="creating instance" directory=/home/iac-615639
+timestamp=2026-08-18T15:42:23.391Z level=INFO run=afc1656c message=fromDirectory directory=/home/iac-615639
+timestamp=2026-08-18T15:42:23.498Z level=INFO run=afc1656c message=bootstrapping directory=/home/iac-615639
+timestamp=2026-08-18T15:42:23.553Z level=INFO run=afc1656c message=loading path=/home/iac-615639/.config/opencode/config.json
+timestamp=2026-08-18T15:42:23.554Z level=INFO run=afc1656c message=loading path=/home/iac-615639/.config/opencode/opencode.json
+timestamp=2026-08-18T15:42:23.557Z level=INFO run=afc1656c message=loading path=/home/iac-615639/.config/opencode/opencode.jsonc
+timestamp=2026-08-18T15:42:23.578Z level=INFO run=afc1656c message=loading path=/home/iac-615639/.opencode/opencode.json
+timestamp=2026-08-18T15:42:23.579Z level=INFO run=afc1656c message=loading path=/home/iac-615639/.opencode/opencode.jsonc
+timestamp=2026-08-18T15:42:23.612Z level=INFO run=afc1656c message="all LSPs are disabled"
+timestamp=2026-08-18T15:42:23.614Z level=INFO run=afc1656c message="all formatters are disabled"
+timestamp=2026-08-18T15:42:23.614Z level=INFO run=afc1656c message=init
+timestamp=2026-08-18T15:42:24.888Z level=INFO run=afc1656c message=init count=1
+timestamp=2026-08-18T15:42:24.935Z level=WARN run=afc1656c message="failed to initialize fff" error="Failed to init file picker: Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+timestamp=2026-08-18T15:42:24.961Z level=INFO run=afc1656c message="watcher backend" directory=/home/iac-615639 platform=linux backend=inotify
+timestamp=2026-08-18T15:42:24.971Z level=INFO run=afc1656c message="project copy refresh started" projectID=global
+timestamp=2026-08-18T15:42:24.973Z level=INFO run=afc1656c message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-08-18T15:42:25.022Z level=INFO run=afc1656c message="booting location services" directory=/home/iac-615639 workspaceID=undefined
+timestamp=2026-08-18T15:42:28.236Z level=INFO run=afc1656c message=created id=ses_fea763073ffeVMECwuVd298rNE slug=eager-nebula version=1.18.18 projectID=global directory=/home/iac-615639 path=home/iac-615639 workspaceID=undefined parentID=undefined title="New session - 2026-08-18T15:42:28.236Z" agent=build model.id=big-pickle model.providerID=opencode metadata=undefined permission=undefined cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1787067748236 time.updated=1787067748236
+timestamp=2026-08-18T15:42:28.307Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=0
+timestamp=2026-08-18T15:42:28.333Z level=INFO run=afc1656c message="shell tool using shell" shell=/bin/bash
+timestamp=2026-08-18T15:42:28.391Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=true agent=title mode=primary
+timestamp=2026-08-18T15:42:28.435Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:42:28.552Z level=WARN run=afc1656c message="failed to initialize fff" error="Failed to init file picker: Can not run certain FFF features in a file system root or home directories. Consider smaller per-project directories."
+timestamp=2026-08-18T15:42:28.564Z level=INFO run=afc1656c message="watcher backend" directory=/home/iac-615639 platform=linux backend=inotify
+timestamp=2026-08-18T15:42:28.573Z level=INFO run=afc1656c message="project copy refresh started" projectID=global
+timestamp=2026-08-18T15:42:28.574Z level=INFO run=afc1656c message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-08-18T15:42:28.645Z level=INFO run=afc1656c message="booting location services" directory=/home/iac-615639 workspaceID=undefined
+timestamp=2026-08-18T15:42:29.018Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_01589cfd9001wnZVkiqkAr9X8D
+timestamp=2026-08-18T15:42:29.019Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:42:29.022Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:42:31.706Z level=INFO run=afc1656c message=evaluated permission=bash pattern="which gh 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:31.706Z level=INFO run=afc1656c message=evaluated permission=bash pattern="echo \"not found\"" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:31.811Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=1
+timestamp=2026-08-18T15:42:31.968Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_01589dd850019BmSWJO1n5bgAu
+timestamp=2026-08-18T15:42:31.970Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:42:31.974Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:42:37.084Z level=INFO run=afc1656c message="resolved path" arg=/etc/os-release resolved=/etc/os-release
+timestamp=2026-08-18T15:42:37.094Z level=INFO run=afc1656c message=evaluated permission=external_directory pattern=/etc/* action.permission=external_directory action.pattern=* action.action=ask
+timestamp=2026-08-18T15:42:37.094Z level=INFO run=afc1656c message=asking id=per_01589f226001sjqs3tEs2840xw permission=external_directory patterns="[\"/etc/*\"]"
+timestamp=2026-08-18T15:42:38.731Z level=INFO run=afc1656c message=evaluated permission=bash pattern="cat /etc/os-release 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:38.731Z level=INFO run=afc1656c message=evaluated permission=bash pattern="head -5" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:38.774Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=2
+timestamp=2026-08-18T15:42:38.895Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_01589f8b9001O6qnt3omIYaOmg
+timestamp=2026-08-18T15:42:38.896Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:42:38.900Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:42:43.082Z level=INFO run=afc1656c message=evaluated permission=bash pattern="sudo dnf install 'dnf-command(config-manager)' 2>/dev/null" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:43.082Z level=INFO run=afc1656c message=evaluated permission=bash pattern="sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:43.083Z level=INFO run=afc1656c message=evaluated permission=bash pattern="sudo dnf install -y gh" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:42:46.550Z level=INFO run=afc1656c message=cancel session.id=ses_fea763073ffeVMECwuVd298rNE
+timestamp=2026-08-18T15:42:46.560Z level=ERROR run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_01589f8b9001O6qnt3omIYaOmg error=Aborted stack=undefined
+timestamp=2026-08-18T15:43:35.507Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=0
+timestamp=2026-08-18T15:43:35.529Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_0158ad656001nWR3m3heb6MrZe
+timestamp=2026-08-18T15:43:35.530Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:43:35.533Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:43:39.038Z level=INFO run=afc1656c message=evaluated permission=bash pattern="ls -la /home/iac-615639/" action.permission=* action.action=allow action.pattern=*
+timestamp=2026-08-18T15:43:39.174Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=1
+timestamp=2026-08-18T15:43:39.215Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_0158ae4a80016rS3qPsOdIz7Wc
+timestamp=2026-08-18T15:43:39.215Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:43:39.217Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:43:45.886Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=2
+timestamp=2026-08-18T15:43:45.888Z level=INFO run=afc1656c message="exiting loop" session.id=ses_fea763073ffeVMECwuVd298rNE
+timestamp=2026-08-18T15:45:41.464Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=0
+timestamp=2026-08-18T15:45:41.487Z level=INFO run=afc1656c message=process session.id=ses_fea763073ffeVMECwuVd298rNE messageID=msg_0158cc25c001XHcn2T6VYeVDNH
+timestamp=2026-08-18T15:45:41.488Z level=INFO run=afc1656c message=stream providerID=opencode modelID=big-pickle session.id=ses_fea763073ffeVMECwuVd298rNE small=false agent=build mode=primary
+timestamp=2026-08-18T15:45:41.491Z level=INFO run=afc1656c message="llm runtime selected" llm.runtime=ai-sdk llm.provider=opencode llm.model=big-pickle
+timestamp=2026-08-18T15:45:45.606Z level=INFO run=afc1656c message=loop session.id=ses_fea763073ffeVMECwuVd298rNE step=1
+timestamp=2026-08-18T15:45:45.608Z level=INFO run=afc1656c message="exiting loop" session.id=ses_fea763073ffeVMECwuVd298rNE
