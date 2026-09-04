@@ -1,0 +1,33 @@
+<%- include('../partials/header', { title }) %>
+<section class="book-detail">
+  <a class="back-link" href="/library/catalog">← Volver al catálogo</a>
+  <div class="book-detail-grid">
+    <div class="book-detail-images">
+      <% if (images.length) { %>
+        <% images.forEach(function (img) { %>
+          <img src="<%= img.file_path %>" alt="<%= img.alt_text || book.title %>" class="<%= img.is_cover ? 'is-cover' : '' %>">
+        <% }) %>
+      <% } else { %>
+        <span class="cover-placeholder">Sin imágenes</span>
+      <% } %>
+    </div>
+    <div class="book-detail-info">
+      <h1><%= book.title %></h1>
+      <p class="book-meta">ISBN <%= book.isbn %> · <%= book.publication_year %> · <%= book.format_name || 'Sin formato' %> · <%= book.category_name || 'Sin categoría' %></p>
+      <p class="book-authors">Autor(es): <%= book.authors || 'No registrado' %></p>
+      <p class="book-genres">Género(s): <%= book.genres || 'No registrado' %></p>
+      <p class="book-price">$<%= book.price %> · Stock disponible: <%= book.stock %></p>
+
+      <% if (concepts.length) { %>
+        <h2>Conceptos</h2>
+        <dl class="concept-list">
+          <% concepts.forEach(function (c) { %>
+            <dt><%= c.concept %><% if (c.reference_page) { %> <small>(p. <%= c.reference_page %>)</small><% } %></dt>
+            <dd><%= c.definition %></dd>
+          <% }) %>
+        </dl>
+      <% } %>
+    </div>
+  </div>
+</section>
+<%- include('../partials/footer') %>

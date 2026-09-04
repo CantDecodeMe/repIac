@@ -1,0 +1,16 @@
+<%- include('../partials/header', { title }) %>
+<section class="auth-card">
+  <h1>Iniciar sesión</h1>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form action="/library/auth/login" method="post" class="form-stack">
+    <label>Correo
+      <input type="email" name="email" required autofocus>
+    </label>
+    <label>Contraseña
+      <input type="password" name="password" required minlength="8">
+    </label>
+    <button type="submit" class="button button-primary">Entrar</button>
+  </form>
+  <p class="auth-switch">¿No tienes cuenta? <a href="/library/auth/register">Regístrate</a></p>
+</section>
+<%- include('../partials/footer') %>

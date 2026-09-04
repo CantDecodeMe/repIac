@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="760" viewBox="0 0 1300 760" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1300" height="760" fill="#ffffff"/>
+
+  <text x="30" y="36" font-size="22" font-weight="700" fill="#1e1b3a">Macro-arquitectura monolítica — Ejercicio 02 (Librería)</text>
+  <text x="30" y="58" font-size="13" fill="#6b6690">Navegador → Apache (reverse proxy) → Node.js/Express (monolito) → PostgreSQL</text>
+
+  <!-- Navegador -->
+  <rect x="30" y="110" width="170" height="90" rx="10" fill="#f2f0fb" stroke="#4338ca" stroke-width="2"/>
+  <text x="115" y="145" font-size="15" font-weight="700" text-anchor="middle" fill="#1e1b3a">Navegador</text>
+  <text x="115" y="165" font-size="11" text-anchor="middle" fill="#6b6690">Usuario / Admin</text>
+  <text x="115" y="180" font-size="11" text-anchor="middle" fill="#6b6690">HTML servido por EJS</text>
+
+  <line x1="200" y1="155" x2="248" y2="155" stroke="#4338ca" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Apache reverse proxy -->
+  <rect x="250" y="95" width="220" height="120" rx="10" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="360" y="125" font-size="15" font-weight="700" text-anchor="middle" fill="#1e1b3a">Apache / NGINX</text>
+  <text x="360" y="145" font-size="11" text-anchor="middle" fill="#6b6690">Reverse proxy (mod_proxy +</text>
+  <text x="360" y="160" font-size="11" text-anchor="middle" fill="#6b6690">mod_rewrite [P] vía .htaccess</text>
+  <text x="360" y="175" font-size="11" text-anchor="middle" fill="#6b6690">de usuario, sin acceso root)</text>
+  <text x="360" y="195" font-size="10" text-anchor="middle" fill="#8b5cf6">/~iac-615639/library → 127.0.0.1:PUERTO</text>
+
+  <line x1="470" y1="155" x2="518" y2="155" stroke="#4338ca" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Monolito container -->
+  <rect x="520" y="80" width="600" height="420" rx="12" fill="#faf9ff" stroke="#4338ca" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="820" y="105" font-size="15" font-weight="700" text-anchor="middle" fill="#1e1b3a">Aplicación Node.js / Express — un solo proceso desplegable (127.0.0.1:PUERTO)</text>
+
+  <!-- app.js -->
+  <rect x="545" y="125" width="180" height="55" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="635" y="148" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">app.js</text>
+  <text x="635" y="164" font-size="10" text-anchor="middle" fill="#6b6690">init Express, middleware</text>
+  <text x="635" y="176" font-size="10" text-anchor="middle" fill="#6b6690">general, arranque</text>
+
+  <!-- middleware -->
+  <rect x="745" y="125" width="180" height="55" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="835" y="148" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">middleware/</text>
+  <text x="835" y="164" font-size="10" text-anchor="middle" fill="#6b6690">sesión, autenticación,</text>
+  <text x="835" y="176" font-size="10" text-anchor="middle" fill="#6b6690">autorización, errores</text>
+
+  <!-- routes -->
+  <rect x="945" y="125" width="150" height="55" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="1020" y="148" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">routes/</text>
+  <text x="1020" y="164" font-size="10" text-anchor="middle" fill="#6b6690">recepción HTTP,</text>
+  <text x="1020" y="176" font-size="10" text-anchor="middle" fill="#6b6690">coordinación de flujo</text>
+
+  <line x1="1020" y1="180" x2="1020" y2="215" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- services -->
+  <rect x="905" y="217" width="195" height="60" rx="8" fill="#fff" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="1002" y="240" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">services/</text>
+  <text x="1002" y="256" font-size="10" text-anchor="middle" fill="#6b6690">reglas de negocio,</text>
+  <text x="1002" y="269" font-size="10" text-anchor="middle" fill="#6b6690">consultas parametrizadas</text>
+
+  <!-- views -->
+  <rect x="545" y="217" width="180" height="60" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="635" y="240" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">views/ (EJS)</text>
+  <text x="635" y="256" font-size="10" text-anchor="middle" fill="#6b6690">plantillas; sin SQL ni</text>
+  <text x="635" y="269" font-size="10" text-anchor="middle" fill="#6b6690">lógica de negocio</text>
+
+  <line x1="725" y1="247" x2="903" y2="247" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+
+  <!-- public -->
+  <rect x="545" y="297" width="180" height="55" rx="8" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="635" y="320" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">public/</text>
+  <text x="635" y="336" font-size="10" text-anchor="middle" fill="#6b6690">CSS, JS de interfaz,</text>
+  <text x="635" y="348" font-size="10" text-anchor="middle" fill="#6b6690">recursos estáticos</text>
+
+  <!-- uploads -->
+  <rect x="745" y="297" width="180" height="55" rx="8" fill="#fff" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="835" y="320" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">uploads/</text>
+  <text x="835" y="336" font-size="10" text-anchor="middle" fill="#6b6690">imágenes validadas,</text>
+  <text x="835" y="348" font-size="10" text-anchor="middle" fill="#6b6690">nombre generado por servidor</text>
+
+  <!-- config -->
+  <rect x="945" y="297" width="150" height="55" rx="8" fill="#fff" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="1020" y="320" font-size="12" font-weight="700" text-anchor="middle" fill="#1e1b3a">config/db.js</text>
+  <text x="1020" y="336" font-size="10" text-anchor="middle" fill="#6b6690">pool pg centralizado</text>
+  <text x="1020" y="348" font-size="10" text-anchor="middle" fill="#6b6690">y credenciales por .env</text>
+
+  <line x1="1002" y1="277" x2="1002" y2="297" stroke="#ec4899" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="1020" y1="352" x2="1020" y2="415" stroke="#ec4899" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="820" y="400" font-size="11" text-anchor="middle" fill="#6b6690" font-style="italic">Todo lo anterior es una sola unidad desplegable: sigue siendo un monolito aunque el código esté modularizado.</text>
+
+  <line x1="820" y1="500" x2="820" y2="548" stroke="#4338ca" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- PostgreSQL -->
+  <rect x="620" y="550" width="400" height="150" rx="10" fill="#f2f0fb" stroke="#4338ca" stroke-width="2"/>
+  <text x="820" y="580" font-size="15" font-weight="700" text-anchor="middle" fill="#1e1b3a">PostgreSQL 16 — clúster propio en $HOME</text>
+  <text x="820" y="600" font-size="11" text-anchor="middle" fill="#6b6690">(initdb/pg_ctl sin sudo, puerto no estándar)</text>
+  <text x="820" y="625" font-size="11" text-anchor="middle" fill="#1e1b3a">Esquema 4FN: books · authors · genres · formats</text>
+  <text x="820" y="642" font-size="11" text-anchor="middle" fill="#1e1b3a">categories · concepts · book_images · users</text>
+  <text x="820" y="659" font-size="11" text-anchor="middle" fill="#1e1b3a">book_authors · book_genres · book_concepts</text>
+  <text x="820" y="680" font-size="10" text-anchor="middle" fill="#6b6690">Acceso con rol de aplicación de mínimo privilegio (no superusuario)</text>
+
+  <text x="30" y="740" font-size="10" fill="#6b6690">Universidad de Monterrey · Integración de Aplicaciones Computacionales · Ejercicio 02</text>
+</svg>

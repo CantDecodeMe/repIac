@@ -1,0 +1,15 @@
+# Pegar dentro de ~/html/.htaccess (crearlo si no existe todavía).
+# Publica la app Node.js bajo https://ubiquitous.udem.edu/~iac-615639/library
+# usando mod_rewrite + mod_proxy en modo per-directory, sin tocar la
+# configuración global de Apache (no requiere sudo) — ver
+# app/docs/DEPLOYMENT_UBIQUITOUS.md para el diagnóstico que confirma que
+# userdir.conf permite AllowOverride FileInfo y que mod_proxy_http /
+# mod_rewrite están cargados.
+#
+# Reemplazar <PUERTO> por el puerto elegido en app/.env (PORT).
+
+RewriteEngine On
+RewriteBase /~iac-615639/
+
+RewriteCond %{REQUEST_URI} ^/~iac-615639/library
+RewriteRule ^(library(/.*)?)$ http://127.0.0.1:<PUERTO>/$1 [P,L]

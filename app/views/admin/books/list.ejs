@@ -1,0 +1,39 @@
+<%- include('../../partials/header', { title }) %>
+<section>
+  <div class="section-head">
+    <h1>Administrar libros</h1>
+    <a class="button button-primary" href="/library/admin/books/new">+ Nuevo libro</a>
+  </div>
+
+  <form action="/library/admin/books" method="get" class="search-form">
+    <input type="search" name="q" value="<%= search %>" placeholder="Buscar por ISBN o título…">
+    <button type="submit" class="button button-secondary">Buscar</button>
+  </form>
+
+  <table class="data-table">
+    <thead><tr><th>ISBN</th><th>Título</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
+    <tbody>
+      <% books.forEach(function (b) { %>
+        <tr>
+          <td><%= b.isbn %></td>
+          <td><%= b.title %></td>
+          <td>$<%= b.price %></td>
+          <td><%= b.stock %></td>
+          <td class="row-actions">
+            <a href="/library/admin/books/<%= b.book_id %>/edit">Editar</a>
+            <form action="/library/admin/books/<%= b.book_id %>/delete" method="post" onsubmit="return confirm('¿Eliminar este libro? Esta acción no se puede deshacer.');">
+              <button type="submit" class="link-button link-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <nav class="pagination">
+    <% if (page > 1) { %><a href="?q=<%= encodeURIComponent(search) %>&page=<%= page - 1 %>">← Anterior</a><% } %>
+    <span>Página <%= page %> de <%= totalPages %></span>
+    <% if (page < totalPages) { %><a href="?q=<%= encodeURIComponent(search) %>&page=<%= page + 1 %>">Siguiente →</a><% } %>
+  </nav>
+</section>
+<%- include('../../partials/footer') %>

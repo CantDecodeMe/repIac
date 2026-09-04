@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reporte 02 · En preparación</title>
+  <title>Reporte 02 · Librería monolítica</title>
   <link rel="stylesheet" href="../../styles/report.css">
 </head>
 <body>
@@ -18,9 +18,61 @@
         <span>Integración de Aplicaciones Computacionales · 2026</span>
       </div>
       <p class="report-kicker">Reporte de actividad · 02</p>
-      <h1>Reporte en<br><em>preparación.</em></h1>
-      <p class="report-lead">Esta entrega del journal todavía no se ha redactado. Aquí aparecerá el reporte de la actividad 02 una vez resuelta.</p>
+      <h1>Librería monolítica<br><em>Node.js + PostgreSQL</em></h1>
+      <p class="report-lead">Aplicación web monolítica (Express + EJS + PostgreSQL) para gestionar una
+        librería, con modelo de datos normalizado a 4FN y desplegada sobre un servidor compartido sin
+        privilegios de root.</p>
+      <div class="header-tags">
+        <span>Node.js 22</span><span>PostgreSQL 16</span><span>4FN</span><span>Sin sudo</span>
+      </div>
     </header>
+
+    <section>
+      <div class="section-number">01</div>
+      <div>
+        <h2>Resumen</h2>
+        <p>El enunciado (<a href="../../enunciados/Ejercicio-02.pdf">Ejercicio-02.pdf</a>) pedía una VM propia
+          en GCP. El despliegue real de este ejercicio es directo sobre <code>ubiquitous.udem.edu</code>, al
+          que se accede por SSH sin sudo — se verificó el entorno real (Node, PostgreSQL, Apache) antes de
+          diseñar nada, y se adaptaron las partes de infraestructura y despliegue del enunciado en
+          consecuencia, sin reducir el resto del alcance (BD 4FN, CRUD completo, seguridad, pruebas).</p>
+        <p>El entregable formal completo (16 secciones, documentación, SQL, y el proyecto empaquetado) vive en
+          <a href="../../ejercicio02/index.html">/ejercicio02/</a>, que es la URL que se publica como entrega
+          del ejercicio. Esta página es la entrada de journal del portafolio.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">02</div>
+      <div>
+        <h2>Dónde ver cada parte</h2>
+        <div class="architecture">
+          <div><strong>Reporte completo</strong><span>ejercicio02/</span><small>16 secciones, diagramas, decisiones de ingeniería.</small></div>
+          <b>→</b>
+          <div><strong>Código y SQL</strong><span>ejercicio02/descargas/</span><small>Proyecto completo empaquetado en .tar.gz.</small></div>
+          <b>→</b>
+          <div><strong>App en vivo</strong><span>/~iac-615639/library</span><small>Reverse proxy hacia Node.js (ver estado abajo).</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">03</div>
+      <div>
+        <h2>Estado del despliegue en vivo</h2>
+        <p class="caption">Pendiente: esta sección se actualiza con la evidencia real (capturas y resultados
+          de la matriz de pruebas) una vez completado el despliegue contra <code>ubiquitous.udem.edu</code>
+          — ver <code>ejercicio02/docs/DEPLOYMENT_UBIQUITOUS.md</code>, sección 5, para la lista exacta de
+          evidencia pendiente.</p>
+      </div>
+    </section>
+
+    <aside class="ai-note">
+      <strong>Uso responsable de IA</strong>
+      <p>Detalle completo de prompts, decisiones revisadas y cambios en
+        <a href="../../ejercicio02/docs/AI_PROMPT_HISTORY.md">AI_PROMPT_HISTORY.md</a> y
+        <a href="../../ejercicio02/docs/AI_CHANGELOG.md">AI_CHANGELOG.md</a>.</p>
+    </aside>
 
     <footer class="report-footer">
       <span>Actividad basada en la consigna del curso</span>

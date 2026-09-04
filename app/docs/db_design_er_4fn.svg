@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="900" fill="#ffffff"/>
+  <text x="30" y="34" font-size="22" font-weight="700" fill="#1e1b3a">Diagrama ER — modelo 4FN de la librería</text>
+  <text x="30" y="54" font-size="12" fill="#6b6690">PK subrayada · FK en cursiva · las tablas puente materializan las dependencias multivaluadas de autores, géneros, conceptos e imágenes</text>
+
+  <!-- helper macro via repeated groups -->
+
+  <!-- users -->
+  <g>
+    <rect x="30" y="90" width="230" height="150" rx="8" fill="#fff" stroke="#4338ca" stroke-width="2"/>
+    <rect x="30" y="90" width="230" height="28" rx="8" fill="#4338ca"/>
+    <text x="145" y="109" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">users</text>
+    <text x="45" y="138" font-size="11" fill="#1e1b3a" text-decoration="underline">user_id PK</text>
+    <text x="45" y="156" font-size="11" fill="#1e1b3a">name</text>
+    <text x="45" y="174" font-size="11" fill="#1e1b3a">email UNIQUE</text>
+    <text x="45" y="192" font-size="11" fill="#1e1b3a">password_hash</text>
+    <text x="45" y="210" font-size="11" fill="#1e1b3a">role CHECK, admin único</text>
+  </g>
+
+  <!-- authors -->
+  <g>
+    <rect x="30" y="270" width="200" height="110" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="30" y="270" width="200" height="26" rx="8" fill="#8b5cf6"/>
+    <text x="130" y="288" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">authors</text>
+    <text x="45" y="315" font-size="11" text-decoration="underline">author_id PK</text>
+    <text x="45" y="333" font-size="11">full_name</text>
+    <text x="45" y="351" font-size="11">bio</text>
+  </g>
+
+  <!-- genres -->
+  <g>
+    <rect x="30" y="400" width="200" height="90" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="30" y="400" width="200" height="26" rx="8" fill="#8b5cf6"/>
+    <text x="130" y="418" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">genres</text>
+    <text x="45" y="445" font-size="11" text-decoration="underline">genre_id PK</text>
+    <text x="45" y="463" font-size="11">name UNIQUE</text>
+  </g>
+
+  <!-- concepts -->
+  <g>
+    <rect x="30" y="510" width="200" height="90" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="30" y="510" width="200" height="26" rx="8" fill="#8b5cf6"/>
+    <text x="130" y="528" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">concepts</text>
+    <text x="45" y="555" font-size="11" text-decoration="underline">concept_id PK</text>
+    <text x="45" y="573" font-size="11">name UNIQUE</text>
+  </g>
+
+  <!-- formats -->
+  <g>
+    <rect x="30" y="620" width="200" height="90" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="30" y="620" width="200" height="26" rx="8" fill="#8b5cf6"/>
+    <text x="130" y="638" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">formats</text>
+    <text x="45" y="665" font-size="11" text-decoration="underline">format_id PK</text>
+    <text x="45" y="683" font-size="11">name UNIQUE</text>
+  </g>
+
+  <!-- categories -->
+  <g>
+    <rect x="30" y="730" width="200" height="90" rx="8" fill="#fff" stroke="#8b5cf6" stroke-width="2"/>
+    <rect x="30" y="730" width="200" height="26" rx="8" fill="#8b5cf6"/>
+    <text x="130" y="748" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">categories</text>
+    <text x="45" y="775" font-size="11" text-decoration="underline">category_id PK</text>
+    <text x="45" y="793" font-size="11">name UNIQUE</text>
+  </g>
+
+  <!-- books (central) -->
+  <g>
+    <rect x="560" y="330" width="260" height="230" rx="8" fill="#fff" stroke="#4338ca" stroke-width="2.5"/>
+    <rect x="560" y="330" width="260" height="30" rx="8" fill="#4338ca"/>
+    <text x="690" y="350" font-size="14" font-weight="700" text-anchor="middle" fill="#fff">books</text>
+    <text x="575" y="382" font-size="11" text-decoration="underline">book_id PK</text>
+    <text x="575" y="400" font-size="11">isbn UNIQUE</text>
+    <text x="575" y="418" font-size="11">title</text>
+    <text x="575" y="436" font-size="11">publication_year</text>
+    <text x="575" y="454" font-size="11">price CHECK &gt; 0</text>
+    <text x="575" y="472" font-size="11">stock CHECK &gt;= 0</text>
+    <text x="575" y="490" font-size="11" font-style="italic">format_id FK</text>
+    <text x="575" y="508" font-size="11" font-style="italic">category_id FK</text>
+    <text x="575" y="526" font-size="11">created_at / updated_at</text>
+  </g>
+
+  <!-- book_authors bridge -->
+  <g>
+    <rect x="290" y="270" width="230" height="90" rx="8" fill="#fff3f9" stroke="#ec4899" stroke-width="2"/>
+    <rect x="290" y="270" width="230" height="26" rx="8" fill="#ec4899"/>
+    <text x="405" y="288" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">book_authors (MVD)</text>
+    <text x="305" y="315" font-size="10.5" font-style="italic">book_id, author_id PK/FK</text>
+  </g>
+  <!-- book_genres bridge -->
+  <g>
+    <rect x="290" y="400" width="230" height="90" rx="8" fill="#fff3f9" stroke="#ec4899" stroke-width="2"/>
+    <rect x="290" y="400" width="230" height="26" rx="8" fill="#ec4899"/>
+    <text x="405" y="418" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">book_genres (MVD)</text>
+    <text x="305" y="445" font-size="10.5" font-style="italic">book_id, genre_id PK/FK</text>
+  </g>
+  <!-- book_concepts bridge with attribute -->
+  <g>
+    <rect x="290" y="510" width="230" height="110" rx="8" fill="#fff3f9" stroke="#ec4899" stroke-width="2"/>
+    <rect x="290" y="510" width="230" height="26" rx="8" fill="#ec4899"/>
+    <text x="405" y="528" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">book_concepts</text>
+    <text x="305" y="555" font-size="10.5" font-style="italic">book_id, concept_id PK/FK</text>
+    <text x="305" y="573" font-size="10.5">definition TEXT</text>
+    <text x="305" y="591" font-size="10.5">reference_page</text>
+  </g>
+
+  <!-- book_images entity -->
+  <g>
+    <rect x="900" y="330" width="230" height="130" rx="8" fill="#fff3f9" stroke="#ec4899" stroke-width="2"/>
+    <rect x="900" y="330" width="230" height="26" rx="8" fill="#ec4899"/>
+    <text x="1015" y="348" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">book_images</text>
+    <text x="915" y="375" font-size="10.5" text-decoration="underline">image_id PK</text>
+    <text x="915" y="393" font-size="10.5" font-style="italic">book_id FK</text>
+    <text x="915" y="411" font-size="10.5">file_path</text>
+    <text x="915" y="429" font-size="10.5">alt_text</text>
+    <text x="915" y="447" font-size="10.5">is_cover (único por libro)</text>
+  </g>
+
+  <!-- relationships to books -->
+  <line x1="520" y1="315" x2="558" y2="400" stroke="#4338ca" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="520" y1="445" x2="558" y2="445" stroke="#4338ca" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="520" y1="565" x2="558" y2="480" stroke="#4338ca" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="820" y1="410" x2="898" y2="395" stroke="#4338ca" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- catalogs to bridges -->
+  <line x1="230" y1="325" x2="288" y2="315" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="230" y1="445" x2="288" y2="445" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="230" y1="555" x2="288" y2="565" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- formats/categories to books -->
+  <path d="M230,665 C 420,665 420,500 560,470" stroke="#8b5cf6" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+  <path d="M230,775 C 460,775 460,520 560,500" stroke="#8b5cf6" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+
+  <!-- users note -->
+  <text x="145" y="255" font-size="10.5" fill="#6b6690" text-anchor="middle">Índice único parcial: WHERE role='admin'</text>
+
+  <text x="30" y="870" font-size="10" fill="#6b6690">1 : N implícito en cada FK · N : M materializado como tabla puente (book_authors, book_genres, book_concepts)</text>
+</svg>

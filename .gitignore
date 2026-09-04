@@ -1,2 +1,8 @@
 .opencode/bin/
 .warp/remote-server/oz-v0.2026.08.12.21.54.stable_00
+
+# Ejercicio 02 — app/
+app/node_modules/
+app/.env
+app/uploads/*
+!app/uploads/.gitkeep

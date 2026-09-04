@@ -1,0 +1,5 @@
+# Bloquea cualquier acceso HTTP directo a esta carpeta.
+# La aplicación solo debe alcanzarse vía el reverse proxy definido en
+# ~/html/.htaccess (deploy/htaccess_root.snippet), nunca sirviendo estos
+# archivos como estáticos (evitaría exponer código fuente, SQL o .env).
+Require all denied

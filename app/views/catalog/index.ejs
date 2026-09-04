@@ -1,0 +1,36 @@
+<%- include('../partials/header', { title }) %>
+<section>
+  <h1>Catálogo</h1>
+  <form action="/library/catalog" method="get" class="search-form">
+    <input type="search" name="q" value="<%= search %>" placeholder="Buscar por ISBN o título…">
+    <button type="submit" class="button button-secondary">Buscar</button>
+  </form>
+
+  <div class="book-grid">
+    <% books.forEach(function (b) { %>
+      <a class="book-card" href="/library/catalog/<%= b.book_id %>">
+        <div class="book-cover">
+          <% if (b.cover_path) { %>
+            <img src="<%= b.cover_path %>" alt="Portada de <%= b.title %>">
+          <% } else { %>
+            <span class="cover-placeholder">Sin portada</span>
+          <% } %>
+        </div>
+        <h3><%= b.title %></h3>
+        <p class="book-authors"><%= b.authors || 'Autor no registrado' %></p>
+        <p class="book-price">$<%= b.price %> · Stock: <%= b.stock %></p>
+      </a>
+    <% }) %>
+  </div>
+
+  <% if (books.length === 0) { %>
+    <p class="empty-state">No se encontraron libros para "<%= search %>".</p>
+  <% } %>
+
+  <nav class="pagination">
+    <% if (page > 1) { %><a href="?q=<%= encodeURIComponent(search) %>&page=<%= page - 1 %>">← Anterior</a><% } %>
+    <span>Página <%= page %> de <%= totalPages %></span>
+    <% if (page < totalPages) { %><a href="?q=<%= encodeURIComponent(search) %>&page=<%= page + 1 %>">Siguiente →</a><% } %>
+  </nav>
+</section>
+<%- include('../partials/footer') %>

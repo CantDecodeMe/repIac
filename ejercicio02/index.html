@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ejercicio 02 · Librería monolítica</title>
+  <link rel="stylesheet" href="../styles/report.css">
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Ejercicio guiado + trabajo en casa · 02</p>
+      <h1>Aplicación web<br><em>monolítica</em> para una librería</h1>
+      <p class="report-lead">GCP SDK CLI · Compute Engine · CentOS Stream 10 · Node.js · Express · EJS ·
+        PostgreSQL · 4FN · CRUD · Uploads · Autenticación · Apache/NGINX — reinterpretado para el despliegue
+        real en <code>ubiquitous.udem.edu</code> sin sudo (ver sección 4).</p>
+      <div class="header-tags">
+        <span>Node.js 22</span><span>Express</span><span>EJS</span><span>PostgreSQL 16</span>
+        <span>4FN</span><span>Sin sudo</span>
+      </div>
+      <table style="margin-top:32px; width:100%; border-collapse:collapse;">
+        <tr><td style="padding:8px 0; color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em;">Nombre</td><td style="padding:8px 0;">Maximiliano Rubio Alanis</td></tr>
+        <tr><td style="padding:8px 0; color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em;">Matrícula</td><td style="padding:8px 0;">615639</td></tr>
+        <tr><td style="padding:8px 0; color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em;">Grupo y hora</td><td style="padding:8px 0;">Por completar</td></tr>
+        <tr><td style="padding:8px 0; color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em;">Fecha</td><td style="padding:8px 0;">4 de septiembre de 2026</td></tr>
+      </table>
+    </header>
+
+    <section>
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>Diseñar, construir, probar, desplegar y documentar una aplicación web monolítica en Node.js para
+          la gestión de una librería en línea, con acceso directo a PostgreSQL, modelo de datos normalizado
+          hasta 4FN, CRUD completo sobre todas las tablas del modelo, manejo de imágenes de libros y registro
+          de conceptos/definiciones asociados al contenido de cada libro.</p>
+        <p>El enunciado original (<a href="../enunciados/Ejercicio-02.pdf">Ejercicio-02.pdf</a>) asume una VM
+          propia en GCP con acceso root. El alcance real de esta entrega se adapta al entorno disponible:
+          despliegue directo sobre el servidor compartido <code>ubiquitous.udem.edu</code>, con acceso SSH pero
+          <strong>sin privilegios de sudo</strong> — ver sección 4 para el detalle completo de esa adaptación.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">02</div>
+      <div>
+        <h2>Análisis de requisitos</h2>
+        <p>Documento completo de requisitos funcionales (RF-01…RF-14) y no funcionales (RNF-01…RNF-08),
+          actores (Visitante, Usuario registrado, Administrador) y riesgos iniciales identificados
+          (acceso no autorizado, SQL Injection, subida de archivos peligrosos, exposición de credenciales,
+          eliminación accidental, publicación de datos sensibles).</p>
+        <p><a href="docs/REQUIREMENTS.md">Ver REQUIREMENTS.md completo ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">03</div>
+      <div>
+        <h2>Decisiones de arquitectura y diagrama del monolito</h2>
+        <p>Arquitectura monolítica server-side: Navegador → Apache/NGINX (reverse proxy vía <code>.htaccess</code>
+          de usuario, sin tocar la configuración global) → Node.js/Express (rutas, middleware, servicios,
+          vistas EJS, estáticos, uploads) → PostgreSQL. Todo el backend es una sola unidad desplegable, aunque
+          el código está modularizado por responsabilidad.</p>
+        <figure class="evidence-figure">
+          <img src="docs/ARCHITECTURE_MONOLITHIC.png" alt="Diagrama de macro-arquitectura monolítica del Ejercicio 02.">
+          <figcaption>Navegador → reverse proxy → Express (routes/services/middleware/views) → PostgreSQL propio.</figcaption>
+        </figure>
+        <p style="margin-top:16px;"><a href="docs/ENGINEERING_DECISIONS.md">Ver registro completo de decisiones (ENGINEERING_DECISIONS.md) ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">04</div>
+      <div>
+        <h2>Diseño de la base de datos: diagrama ER y 4FN</h2>
+        <p>Evolución documentada 1FN → 2FN → 3FN/BCNF → 4FN, resolviendo explícitamente las dependencias
+          multivaluadas de autores, géneros, conceptos e imágenes con tablas puente independientes entre sí
+          (<code>book_authors</code>, <code>book_genres</code>, <code>book_concepts</code>, <code>book_images</code>).</p>
+        <figure class="evidence-figure">
+          <img src="docs/DB_DESIGN_ER_4FN.png" alt="Diagrama entidad-relación del modelo 4FN de la librería.">
+          <figcaption>Modelo final 4FN: catálogos independientes + libros + tablas puente por relación multivaluada.</figcaption>
+        </figure>
+        <p style="margin-top:16px;"><a href="docs/NORMALIZATION_4FN.md">Ver el proceso completo de normalización ↗</a> ·
+          <a href="sql/">Ver todos los scripts SQL (schema, seed, SP, triggers, vistas) ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">05</div>
+      <div>
+        <h2>Infraestructura: de GCP a ubiquitous.udem.edu sin sudo</h2>
+        <p>No se aprovisionó ninguna VM en GCP. Se verificó por SSH, sin asumir nada, qué ofrece realmente
+          el servidor de la materia: Node 22 y PostgreSQL 16 ya instalados, un servicio PostgreSQL de sistema
+          sin credenciales propias accesibles, y Apache con <code>mod_proxy</code>/<code>mod_rewrite</code>
+          cargados y <code>AllowOverride FileInfo</code> habilitado para el directorio del usuario.</p>
+        <p>Se probó y confirmó que un clúster PostgreSQL propio dentro de <code>$HOME</code>
+          (<code>initdb</code>/<code>pg_ctl</code>, sin sudo) es viable, y que el reverse proxy se puede resolver
+          con una regla <code>RewriteRule … [P]</code> en un <code>.htaccess</code> de usuario. El detalle
+          completo, con la salida real de cada comando de diagnóstico, está en
+          <a href="docs/DEPLOYMENT_UBIQUITOUS.md">DEPLOYMENT_UBIQUITOUS.md</a>.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">06</div>
+      <div>
+        <h2>Estructura de módulos de Node.js</h2>
+        <div class="architecture">
+          <div><strong>routes/</strong><span>HTTP + flujo</span><small>Recibe la solicitud, valida parámetros, llama a services/.</small></div>
+          <b>→</b>
+          <div><strong>services/</strong><span>Negocio + datos</span><small>Reglas de negocio y consultas parametrizadas a PostgreSQL.</small></div>
+          <b>→</b>
+          <div><strong>views/</strong><span>EJS</span><small>Solo presentación; sin SQL ni lógica de negocio.</small></div>
+        </div>
+        <p class="caption">middleware/ resuelve autenticación, autorización por rol y manejo centralizado de errores; config/db.js es el único punto de conexión a PostgreSQL.</p>
+      </div>
+    </section>
+
+    <section class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Funcionalidades implementadas</h2>
+        <ol class="process-list">
+          <li><span>1</span><p><strong>Cuentas y sesión.</strong> Registro, login, logout, contraseñas con bcrypt, sesión persistida en PostgreSQL.</p></li>
+          <li><span>2</span><p><strong>Catálogo.</strong> Listado paginado, búsqueda por ISBN exacto y por título, detalle con autores/géneros/conceptos/imágenes.</p></li>
+          <li><span>3</span><p><strong>CRUD administrativo.</strong> Libros, autores, géneros, formatos, categorías y conceptos, todo desde la interfaz web.</p></li>
+          <li><span>4</span><p><strong>Relaciones N:M.</strong> Autores↔libro y géneros↔libro independientes entre sí; conceptos con definición propia por libro.</p></li>
+          <li><span>5</span><p><strong>Imágenes.</strong> Carga validada (extensión, MIME real, tamaño), portada marcable, nombre generado por el servidor.</p></li>
+          <li><span>6</span><p><strong>Stock y precio.</strong> Ajuste de stock vía stored procedure, con mensajes de negocio ante intentos inválidos.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">08</div>
+      <div>
+        <h2>Seguridad y roles</h2>
+        <p>Un único Administrador reforzado por índice único parcial + trigger; autorización por rol en
+          cada ruta <code>/admin/*</code>; consultas 100% parametrizadas; validación server-side de campos y
+          de archivos (firma binaria real, no solo el MIME declarado); errores controlados sin stack traces
+          ni SQL visible; rol de PostgreSQL de mínimo privilegio para la aplicación.</p>
+        <p><a href="docs/SECURITY_REVIEW.md">Ver revisión de seguridad completa (9 controles + adicionales) ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">09</div>
+      <div>
+        <h2>Plan y resultados de pruebas</h2>
+        <p>Matriz de 30 casos (funcionales, autorización, integridad negativa, validación de campos/archivos,
+          relaciones N:M, parametrización SQL, despliegue y usabilidad). Los resultados reales
+          (Observado/Estado/Evidencia) se completan al correr la aplicación contra el servidor ya desplegado.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Categoría</th><th>Casos</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td>Funcionales (login, búsqueda, CRUD)</td><td>TC-01 a TC-13</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>Autorización por rol</td><td>TC-14 a TC-16</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>Integridad negativa (BD)</td><td>TC-17 a TC-22</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>Validación de campos/archivos</td><td>TC-23, TC-24</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>Relaciones N:M y conceptos</td><td>TC-25 a TC-27</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>SQLi / despliegue / usabilidad</td><td>TC-28 a TC-30</td><td>Pendiente de corrida en vivo</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:16px;"><a href="docs/TEST_PLAN.md">Ver la matriz completa de 30 casos ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">10</div>
+      <div>
+        <h2>Despliegue con Apache (reverse proxy)</h2>
+        <p>Node.js escucha únicamente en <code>127.0.0.1:&lt;puerto&gt;</code>. Apache expone
+          <code>https://ubiquitous.udem.edu/~iac-615639/library</code> mediante una regla
+          <code>RewriteRule … [P]</code> en un <code>.htaccess</code> de usuario (sin acceso a la
+          configuración global de Apache), documentada en <code>deploy/htaccess_root.snippet</code>. Un cron
+          de tipo <em>heartbeat</em> (mismo patrón que el <code>sync.sh</code> ya presente en el servidor)
+          mantiene vivos tanto el clúster PostgreSQL propio como el proceso Node sin depender de
+          <code>systemctl</code>/root.</p>
+        <p><a href="docs/DEPLOYMENT_UBIQUITOUS.md">Ver procedimiento completo de despliegue ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">11</div>
+      <div>
+        <h2>Galería de evidencias</h2>
+        <p class="caption">Pendiente de captura: pantallas de catálogo, CRUD, subida de imagen y acceso
+          externo vía <code>ubiquitous.udem.edu</code>, una vez completado el Checkpoint G de despliegue en
+          vivo (ver evidencias/ y la lista de verificación en DEPLOYMENT_UBIQUITOUS.md, sección 5).</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">12</div>
+      <div>
+        <h2>Decisiones de ingeniería, problemas y soluciones</h2>
+        <p>La decisión con más impacto en todo el proyecto fue D-04: reemplazar la VM propia en GCP por un
+          clúster PostgreSQL autocontenido en <code>$HOME</code>, tras confirmar por SSH que no había sudo ni
+          credenciales para el servicio de sistema. Esa decisión —y las otras tres registradas antes de
+          escribir código (monolito, acceso directo con <code>pg</code>, EJS server-side)— están documentadas
+          con el esquema completo (necesidad → alternativas → decisión → justificación → riesgo → validación).</p>
+        <p><a href="docs/ENGINEERING_DECISIONS.md">Ver las 4 decisiones completas ↗</a> ·
+          <a href="docs/ARCHITECTURE_TRADEOFFS.md">Ver evaluación arquitectónica monolito vs. desacoplado vs. microservicios (Tarea 2c) ↗</a></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">13</div>
+      <div>
+        <h2>Uso documentado de Inteligencia Artificial</h2>
+        <p>La IA ayudó a explorar el entorno real del servidor (por SSH, con comandos de solo lectura),
+          a diseñar la adaptación de GCP a un despliegue sin sudo, y a construir el código, el esquema SQL y
+          la documentación. Cada decisión de arquitectura y de base de datos fue revisada, cuestionada y
+          verificada por el estudiante antes de aceptarla.</p>
+        <p><a href="docs/AI_PROMPT_HISTORY.md">Ver historial completo de prompts (AI_PROMPT_HISTORY.md) ↗</a> ·
+          <a href="docs/AI_CHANGELOG.md">Ver changelog por archivo (AI_CHANGELOG.md) ↗</a> ·
+          <a href="docs/PROMPT_MAESTRO_IA.md">Ver plantilla de mejoras puntuales (PROMPT_MAESTRO_IA.md) ↗</a></p>
+      </div>
+    </section>
+
+    <aside class="ai-note">
+      <strong>Uso responsable de IA</strong>
+      <p>La responsabilidad de las decisiones, las pruebas y los resultados permanece en el estudiante: la
+        IA no sustituye la explicación del modelo relacional, la defensa de la arquitectura ni la
+        interpretación de las pruebas.</p>
+    </aside>
+
+    <section>
+      <div class="section-number">14</div>
+      <div>
+        <h2>Conclusiones y mejoras futuras</h2>
+        <p>El sistema cumple el alcance monolítico pedido: modelo 4FN completo, CRUD real sobre todas las
+          tablas administrables, autenticación con un solo Administrador, subida de imágenes validada, y un
+          plan de despliegue viable en un servidor compartido sin privilegios de root — algo que el enunciado
+          original no contemplaba y que se resolvió como un problema de ingeniería real, no como un obstáculo
+          a ignorar.</p>
+        <p>Limitaciones conocidas: las imágenes se sirven sin control de sesión adicional (riesgo residual
+          aceptado, ver SECURITY_REVIEW.md); el almacenamiento de imágenes es un directorio local que no
+          escala horizontalmente. Como mejora futura razonable: mover uploads/ a almacenamiento de objetos
+          externo antes de pensar en separar frontend/backend o en microservicios (ver
+          ARCHITECTURE_TRADEOFFS.md) — ninguna de esas dos últimas se justifica todavía para el tamaño real
+          de este proyecto.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">15</div>
+      <div>
+        <h2>Descargas</h2>
+        <ul>
+          <li><a href="descargas/ejercicio02.tar.gz">Proyecto completo (app/, deploy/, scripts/) — ejercicio02.tar.gz ↓</a></li>
+          <li><a href="sql/">Todos los scripts SQL ↗</a></li>
+          <li><a href="docs/">Toda la documentación de ingeniería ↗</a></li>
+          <li><a href="../enunciados/Ejercicio-02.pdf">Enunciado original ↗</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>URL del ejercicio: https://ubiquitous.udem.edu/~iac-615639/ejercicio02/ · Última actualización: 4 de septiembre de 2026 · v1.0</span>
+      <a href="../activities/02/index.html">Ver entrada de journal ↗</a>
+    </footer>
+  </main>
+</body>
+</html>

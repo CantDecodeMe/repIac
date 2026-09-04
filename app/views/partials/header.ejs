@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · Librería</title>
+  <link rel="stylesheet" href="/library/public/css/style.css">
+</head>
+<body>
+  <header class="site-nav">
+    <a class="brand" href="/library/catalog">📚 Librería</a>
+    <nav>
+      <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+        <a href="/library/catalog">Catálogo</a>
+        <% if (currentUser.role === 'admin') { %>
+          <a href="/library/admin">Administración</a>
+        <% } %>
+        <span class="nav-user"><%= currentUser.name %></span>
+        <form action="/library/auth/logout" method="post" class="inline-form">
+          <button type="submit" class="link-button">Cerrar sesión</button>
+        </form>
+      <% } else { %>
+        <a href="/library/auth/login">Iniciar sesión</a>
+        <a href="/library/auth/register">Crear cuenta</a>
+      <% } %>
+    </nav>
+  </header>
+  <main class="site-main">
+    <% if (typeof flashError !== 'undefined' && flashError) { %>
+      <div class="alert alert-error"><%= flashError %></div>
+    <% } %>
