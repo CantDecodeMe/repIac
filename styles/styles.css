@@ -338,6 +338,10 @@ h2 {
 .dynamic-card .report-body h3 { font-size: 1.5rem; }
 .dynamic-card .report-facts { display: none; }
 
+.assignments-heading { margin: 56px 0 24px; }
+
+.assignments-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 24px; }
+
 .course-section {
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
