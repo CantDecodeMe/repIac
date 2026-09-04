@@ -2,7 +2,7 @@
 <section class="auth-card">
   <h1>Crear cuenta</h1>
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
-  <form action="/library/auth/register" method="post" class="form-stack">
+  <form action="<%= basePath %>/library/auth/register" method="post" class="form-stack">
     <label>Nombre
       <input type="text" name="name" required autofocus>
     </label>
@@ -17,6 +17,6 @@
     </label>
     <button type="submit" class="button button-primary">Registrarme</button>
   </form>
-  <p class="auth-switch">¿Ya tienes cuenta? <a href="/library/auth/login">Inicia sesión</a></p>
+  <p class="auth-switch">¿Ya tienes cuenta? <a href="<%= basePath %>/library/auth/login">Inicia sesión</a></p>
 </section>
 <%- include('../partials/footer') %>

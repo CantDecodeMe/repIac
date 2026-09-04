@@ -1,17 +1,17 @@
 <%- include('../partials/header', { title }) %>
 <section>
   <h1>Catálogo</h1>
-  <form action="/library/catalog" method="get" class="search-form">
+  <form action="<%= basePath %>/library/catalog" method="get" class="search-form">
     <input type="search" name="q" value="<%= search %>" placeholder="Buscar por ISBN o título…">
     <button type="submit" class="button button-secondary">Buscar</button>
   </form>
 
   <div class="book-grid">
     <% books.forEach(function (b) { %>
-      <a class="book-card" href="/library/catalog/<%= b.book_id %>">
+      <a class="book-card" href="<%= basePath %>/library/catalog/<%= b.book_id %>">
         <div class="book-cover">
           <% if (b.cover_path) { %>
-            <img src="<%= b.cover_path %>" alt="Portada de <%= b.title %>">
+            <img src="<%= basePath %><%= b.cover_path %>" alt="Portada de <%= b.title %>">
           <% } else { %>
             <span class="cover-placeholder">Sin portada</span>
           <% } %>

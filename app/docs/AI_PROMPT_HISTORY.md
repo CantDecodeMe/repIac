@@ -90,3 +90,42 @@ se verificó. Ver `AI_CHANGELOG.md` para el resumen por archivo y
   estudiante revisó cada decisión de diseño (no solo el código) antes de
   aceptarla, según consta en las preguntas de aclaración de esta misma
   conversación.
+
+## 2026-09-04 · Despliegue en vivo (Checkpoint G ejecutado) + fix de proxy
+
+- **Prompt (resumido):** se pidió ejecutar en el servidor real (SSH,
+  `iac-615639`) el Handoff Checkpoint G: puertos, PostgreSQL propio, `.env`,
+  `npm install`, `.htaccess` reverse proxy, heartbeat en crontab, pruebas
+  reales de la sección 4 del SQL, TEST_PLAN.md y DEPLOYMENT_UBIQUITOUS.md.
+  Al validar el flujo completo por el navegador se descubrió que la app no
+  era navegable detrás del proxy UserDir.
+- **Diagnóstico real (en el servidor):**
+  1. Cookie `Path=/library` vs peticiones del navegador
+     `/~iac-615639/library/...`: fail en RFC 6265 path-match y además
+     express-session 1.19 exige pathname-cookie-path-match sobre lo que
+     recibe Node (`/library/...`, Apache quita el prefijo). El único path
+     que satisface ambos lados es `/`.
+  2. Redirects y links absolutos `/library/...` => se perdía
+     `/~iac-615639`.
+  3. Las imágenes seed usan paths `/uploads/seed/...` (no montadas) y el
+     UserDir no las sirve; Apache solo proxiába `/library`.
+  4. `sync.sh` hace `git reset --hard origin/main` cada 5 min y el server
+     no tiene credencial de push: cualquier cambio no commiteado/pusheado
+     se revierte. Se resolvió con una copia de despliegue fuera del repo
+     (`~/libapp/`) y un heartbeat propio en crontab.
+- **Fix implementado y verificado en vivo:** middleware `APP_BASE_PATH` +
+  `res.locals.basePath` en `app/app.js`; prefix `basePath` en todas las
+  vistas; cookie `path:'/'`; mount estático `/uploads`; regla en
+  `.htaccess` para `/uploads`; portadas seed JPEG generadas. Todo verificado
+  vía el camino del proxy (`http://127.0.0.1/~iac-615639/library/...` y
+  `http://ubiquitous.udem.edu/~iac-615639/...` → 200).
+- **Riesgo introducido:** la cookie de sesión ahora viaja con `Path=/`
+  (decisión documentada en app.js y en AI_CHANGELOG G2). Mitigado con
+  HttpOnly + SameSite=Lax y el entorno productivo por HTTPS.
+- **Pruebas ejecutadas:** flujo completo login→catálogo→detalle→admin→logout
+  vía proxy; imágenes seed y css 200; verificación de prefijos en `Location`
+  y links. Detalle por caso en `TEST_PLAN.md`.
+- **Resultado:** sitio vivo y estable en
+  https://ubiquitous.udem.edu/~iac-615639/library, con copia de producción
+  en `~/libapp/` inmune a los resets de `sync.sh`, y patch del fix en
+  `~/library-work/fix-proxy-userdir.patch` para incorporarlo al repo.

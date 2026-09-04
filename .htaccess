@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /~iac-615639/
+
+RewriteCond %{REQUEST_URI} ^/~iac-615639/library
+RewriteRule ^(library(/.*)?)$ http://127.0.0.1:3110/$1 [P,L]
+
+# Imágenes (seed y subidas) viven en app/uploads; Apache no puede servirlas
+# desde el UserDir, así que las proxiá a Node igual que /library.
+RewriteCond %{REQUEST_URI} ^/~iac-615639/uploads
+RewriteRule ^uploads(/.*)?$ http://127.0.0.1:3110/uploads$1 [P,L]

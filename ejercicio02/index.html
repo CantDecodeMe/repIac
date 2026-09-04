@@ -158,36 +158,48 @@
         <h2>Plan y resultados de pruebas</h2>
         <p>Matriz de 30 casos (funcionales, autorización, integridad negativa, validación de campos/archivos,
           relaciones N:M, parametrización SQL, despliegue y usabilidad). Los resultados reales
-          (Observado/Estado/Evidencia) se completan al correr la aplicación contra el servidor ya desplegado.</p>
+          (Observado/Estado/Evidencia) fueron tomados en vivo el 4 de septiembre de 2026 contra el servidor ya
+          desplegado: primero sobre <code>127.0.0.1:3110</code> y después a través del reverse proxy
+          (<code>http://127.0.0.1/~iac-615639/library/...</code>), el mismo camino que usa Apache público.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Categoría</th><th>Casos</th><th>Estado</th></tr></thead>
             <tbody>
-              <tr><td>Funcionales (login, búsqueda, CRUD)</td><td>TC-01 a TC-13</td><td>Pendiente de corrida en vivo</td></tr>
-              <tr><td>Autorización por rol</td><td>TC-14 a TC-16</td><td>Pendiente de corrida en vivo</td></tr>
-              <tr><td>Integridad negativa (BD)</td><td>TC-17 a TC-22</td><td>Pendiente de corrida en vivo</td></tr>
-              <tr><td>Validación de campos/archivos</td><td>TC-23, TC-24</td><td>Pendiente de corrida en vivo</td></tr>
-              <tr><td>Relaciones N:M y conceptos</td><td>TC-25 a TC-27</td><td>Pendiente de corrida en vivo</td></tr>
-              <tr><td>SQLi / despliegue / usabilidad</td><td>TC-28 a TC-30</td><td>Pendiente de corrida en vivo</td></tr>
+              <tr><td>Funcionales (login, búsqueda, CRUD)</td><td>TC-01 a TC-13</td><td>PASS (evidencia por curl/psql)</td></tr>
+              <tr><td>Autorización por rol</td><td>TC-14 a TC-16</td><td>PASS (302→login y 403 con vista propia)</td></tr>
+              <tr><td>Integridad negativa (BD)</td><td>TC-17 a TC-22</td><td>PASS (6 errores reales de PostgreSQL)</td></tr>
+              <tr><td>Validación de campos/archivos</td><td>TC-23, TC-24</td><td>PASS (400 y rechazo por firma binaria)</td></tr>
+              <tr><td>Relaciones N:M y conceptos</td><td>TC-25 a TC-27</td><td>PASS (book id 33: 2 autores, 2 géneros, 2 conceptos)</td></tr>
+              <tr><td>SQLi / despliegue / usabilidad</td><td>TC-28 a TC-30</td><td>PASS (0 filas anti-SQLi; proxy 200; links con prefijo)</td></tr>
             </tbody>
           </table>
         </div>
-        <p style="margin-top:16px;"><a href="docs/TEST_PLAN.md">Ver la matriz completa de 30 casos ↗</a></p>
+        <p style="margin-top:16px;"><a href="docs/TEST_PLAN.md">Ver la matriz completa de 30 casos, ya con Observado/Estado/Evidencia ↗</a></p>
       </div>
     </section>
 
     <section>
       <div class="section-number">10</div>
       <div>
-        <h2>Despliegue con Apache (reverse proxy)</h2>
-        <p>Node.js escucha únicamente en <code>127.0.0.1:&lt;puerto&gt;</code>. Apache expone
-          <code>https://ubiquitous.udem.edu/~iac-615639/library</code> mediante una regla
+        <h2>Despliegue con Apache (reverse proxy) — ya en vivo</h2>
+        <p>Node.js escucha únicamente en <code>127.0.0.1:3110</code> (puerto real elegido tras el escaneo de
+          sockets de la sección 05) y PostgreSQL propio en <code>127.0.0.1:5433</code> (datadir
+          <code>~/pgdata</code>). Apache expone
+          <code>https://ubiquitous.udem.edu/~iac-615639/library</code> mediante reglas
           <code>RewriteRule … [P]</code> en un <code>.htaccess</code> de usuario (sin acceso a la
-          configuración global de Apache), documentada en <code>deploy/htaccess_root.snippet</code>. Un cron
-          de tipo <em>heartbeat</em> (mismo patrón que el <code>sync.sh</code> ya presente en el servidor)
-          mantiene vivos tanto el clúster PostgreSQL propio como el proceso Node sin depender de
-          <code>systemctl</code>/root.</p>
-        <p><a href="docs/DEPLOYMENT_UBIQUITOUS.md">Ver procedimiento completo de despliegue ↗</a></p>
+          configuración global de Apache): <code>/library</code> y <code>/uploads</code> → Node. El heartbeat
+          del clúster y del proceso Node corre por cron cada 5 min.</p>
+        <p>Durante la verificación en vivo se encontró y corrigió un problema real que no aparecía en el
+          diseño: navegando vía el proxy UserDir, la cookie de sesión se emitía con <code>Path=/library</code>
+          pero el navegador pide <code>/~iac-615639/library/...</code> → RFC 6265 no hacía path-match y
+          express-session 1.19 exigía que el pathname llegado a Node empezara por el cookie path. Solución
+          aplicada y verificada: cookie con <code>Path=/</code> (HttpOnly, SameSite=Lax) más prefijo
+          <code>APP_BASE_PATH=/~iac-615639</code> en redirects y todas las vistas, y una nueva regla de proxy
+          para <code>/uploads</code> (las imágenes viven en <code>app/uploads</code>, no en el UserDir).
+          Detalle completo en <a href="docs/AI_CHANGELOG.md">AI_CHANGELOG (G2)</a>.</p>
+        <p>Validado en vivo: login → 302 <code>Location: /~iac-615639/library/catalog</code>, catálogo/detalle/
+          admin 200, css 200, portada seed 200 (<code>image/jpeg</code>), logout → 302 a login.
+          <a href="docs/DEPLOYMENT_UBIQUITOUS.md">Ver procedimiento completo de despliegue y evidencia ↗</a></p>
       </div>
     </section>
 
@@ -195,9 +207,29 @@
       <div class="section-number">11</div>
       <div>
         <h2>Galería de evidencias</h2>
-        <p class="caption">Pendiente de captura: pantallas de catálogo, CRUD, subida de imagen y acceso
-          externo vía <code>ubiquitous.udem.edu</code>, una vez completado el Checkpoint G de despliegue en
-          vivo (ver evidencias/ y la lista de verificación en DEPLOYMENT_UBIQUITOUS.md, sección 5).</p>
+        <p>Las pruebas se tomaron sobre el camino del proxy (<code>http://127.0.0.1/~iac-615639/library/...</code>,
+          idéntico al que usa el Apache público) y se documentaron con salida real de terminal/HTTP. Resumen
+          verificado el 4 de septiembre de 2026:</p>
+        <ul class="process-list">
+          <li><span>1</span><p><strong>Login correcto vía proxy</strong> — <code>302 → /~iac-615639/library/catalog</code>;
+            <code>Set-Cookie library.sid; Path=/; HttpOnly; SameSite=Lax</code>.</p></li>
+          <li><span>2</span><p><strong>Catálogo y detalle</strong> — 200 con links prefijados
+            <code>href="/~iac-615639/library/catalog/1"</code> y portada real
+            <code>src="/~iac-615639/uploads/seed/978-0-EJ02-0001-cover.jpg"</code> (200 <code>image/jpeg</code>).</p></li>
+          <li><span>3</span><p><strong>Autorización</strong> — visitante 302→login; usuario <code>registered</code>
+            → 403 con la vista propia «Acceso denegado»; admin recorre todo <code>/admin/*</code>.</p></li>
+          <li><span>4</span><p><strong>Integridad de datos</strong> — 6 errores reales de PostgreSQL
+            (UNIQUE isbn, CHECK stock/precio, FK autores, ON DELETE RESTRICT, trigger de un solo Administrador)
+            reproducidos en <code>db/03_...sql</code> sección 4.</p></li>
+          <li><span>5</span><p><strong>Negativos</strong> — registro sin password → 400 «Todos los campos son
+            obligatorios.»; buscador con <code>x' OR '1'='1</code> → 0 resultados; <code>.php</code> renombrado a
+            <code>.jpg</code> → rechazado por firma binaria real.</p></li>
+          <li><span>6</span><p><strong>Acceso público</strong> — <code>http://ubiquitous.udem.edu/~iac-615639/library/auth/login</code>
+            → 200. Nota: el HTTPS público no es alcanzable desde dentro del propio servidor; la captura final de
+            navegador en ventana privada se toma fuera del túnel.</p></li>
+        </ul>
+        <p class="caption">Evidencia por caso (TC-01…TC-30) en docs/TEST_PLAN.md; errores reales de PostgreSQL en
+          docs/DEPLOYMENT_UBIQUITOUS.md sección 5; arreglo del proxy en AI_CHANGELOG.md.</p>
       </div>
     </section>
 
@@ -210,6 +242,14 @@
           credenciales para el servicio de sistema. Esa decisión —y las otras tres registradas antes de
           escribir código (monolito, acceso directo con <code>pg</code>, EJS server-side)— están documentadas
           con el esquema completo (necesidad → alternativas → decisión → justificación → riesgo → validación).</p>
+        <p>Problema real encontrado y resuelto durante el despliegue (Checkpoint G): la app no era navegable
+          detrás del proxy UserDir porque la cookie de sesión usaba <code>Path=/library</code> y los links/
+          redirects eran absolutos <code>/library/...</code>. La solución pasó por cookie <code>Path=/</code>
+          + prefijo <code>APP_BASE_PATH=/~iac-615639</code> en todas las vistas, además de una regla de proxy
+          para <code>/uploads</code> y de portadas seed reales (60 JPEG). Impacto de este servidor: el
+          <code>sync.sh</code> existente revierte a <code>origin/main</code> cada 5 min y no hay credenciales
+          de push, por lo que la copia que sirve la web en vivo vive en <code>~/libapp/</code> y el arreglo se
+          publica como patch (<code>~/library-work/fix-proxy-userdir.patch</code>).</p>
         <p><a href="docs/ENGINEERING_DECISIONS.md">Ver las 4 decisiones completas ↗</a> ·
           <a href="docs/ARCHITECTURE_TRADEOFFS.md">Ver evaluación arquitectónica monolito vs. desacoplado vs. microservicios (Tarea 2c) ↗</a></p>
       </div>
@@ -268,7 +308,8 @@
     </section>
 
     <footer class="report-footer">
-      <span>URL del ejercicio: https://ubiquitous.udem.edu/~iac-615639/ejercicio02/ · Última actualización: 4 de septiembre de 2026 · v1.0</span>
+      <span>URL del ejercicio: https://ubiquitous.udem.edu/~iac-615639/ejercicio02/ · App en vivo:
+        https://ubiquitous.udem.edu/~iac-615639/library · Última actualización: 4 de septiembre de 2026 · v1.1</span>
       <a href="../activities/02/index.html">Ver entrada de journal ↗</a>
     </footer>
   </main>

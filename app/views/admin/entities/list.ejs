@@ -1,6 +1,6 @@
 <%- include('../../partials/header', { title }) %>
 <section>
-  <a class="back-link" href="/library/admin">← Volver al panel</a>
+  <a class="back-link" href="<%= basePath %>/library/admin">← Volver al panel</a>
   <h1><%= entityConfig.label %>s</h1>
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
@@ -10,14 +10,14 @@
       <% items.forEach(function (item) { %>
         <tr>
           <td>
-            <form action="/library/admin/catalogs/<%= entityKey %>/<%= item.id %>/update" method="post" class="row-form">
+            <form action="<%= basePath %>/library/admin/catalogs/<%= entityKey %>/<%= item.id %>/update" method="post" class="row-form">
               <input type="text" name="name" value="<%= item.name %>" required>
               <% if (entityConfig.hasBio) { %><input type="text" name="bio" value="<%= item.bio || '' %>" placeholder="Biografía"><% } %>
               <button type="submit" class="link-button">Guardar</button>
             </form>
           </td>
           <td class="row-actions">
-            <form action="/library/admin/catalogs/<%= entityKey %>/<%= item.id %>/delete" method="post" onsubmit="return confirm('¿Eliminar este registro?');">
+            <form action="<%= basePath %>/library/admin/catalogs/<%= entityKey %>/<%= item.id %>/delete" method="post" onsubmit="return confirm('¿Eliminar este registro?');">
               <button type="submit" class="link-button link-danger">Eliminar</button>
             </form>
           </td>
@@ -27,7 +27,7 @@
   </table>
 
   <h2>Agregar <%= entityConfig.label.toLowerCase() %></h2>
-  <form action="/library/admin/catalogs/<%= entityKey %>" method="post" class="form-stack">
+  <form action="<%= basePath %>/library/admin/catalogs/<%= entityKey %>" method="post" class="form-stack">
     <label>Nombre
       <input type="text" name="name" required>
     </label>

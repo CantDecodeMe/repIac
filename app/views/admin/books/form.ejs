@@ -8,11 +8,11 @@
 %>
 <%- include('../../partials/header', { title }) %>
 <section>
-  <a class="back-link" href="/library/admin/books">← Volver a libros</a>
+  <a class="back-link" href="<%= basePath %>/library/admin/books">← Volver a libros</a>
   <h1><%= title %></h1>
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-  <form action="<%= isEdit ? `/library/admin/books/${book.book_id}` : '/library/admin/books' %>" method="post" class="form-stack">
+  <form action="<%= isEdit ? `${basePath}/library/admin/books/${book.book_id}` : `${basePath}/library/admin/books` %>" method="post" class="form-stack">
     <label>ISBN
       <input type="text" name="isbn" value="<%= isEdit ? book.isbn : (book && book.isbn) || '' %>" <%= isEdit ? 'readonly' : 'required' %>>
     </label>
@@ -71,7 +71,7 @@
   <% if (isEdit) { %>
     <section class="sub-section">
       <h2>Ajustar stock</h2>
-      <form action="/library/admin/books/<%= book.book_id %>/stock" method="post" class="inline-form">
+      <form action="<%= basePath %>/library/admin/books/<%= book.book_id %>/stock" method="post" class="inline-form">
         <input type="number" name="delta" placeholder="+5 o -3" required>
         <button type="submit" class="button button-secondary">Aplicar</button>
       </form>
@@ -82,19 +82,19 @@
       <div class="image-gallery">
         <% bookImages.forEach(function (img) { %>
           <div class="image-item">
-            <img src="<%= img.file_path %>" alt="<%= img.alt_text || '' %>">
+            <img src="<%= basePath %><%= img.file_path %>" alt="<%= img.alt_text || '' %>">
             <% if (img.is_cover) { %><span class="badge">Portada</span><% } else { %>
-              <form action="/library/admin/images/books/<%= book.book_id %>/<%= img.image_id %>/cover" method="post">
+              <form action="<%= basePath %>/library/admin/images/books/<%= book.book_id %>/<%= img.image_id %>/cover" method="post">
                 <button type="submit" class="link-button">Marcar como portada</button>
               </form>
             <% } %>
-            <form action="/library/admin/images/books/<%= book.book_id %>/<%= img.image_id %>/delete" method="post" onsubmit="return confirm('¿Eliminar esta imagen?');">
+            <form action="<%= basePath %>/library/admin/images/books/<%= book.book_id %>/<%= img.image_id %>/delete" method="post" onsubmit="return confirm('¿Eliminar esta imagen?');">
               <button type="submit" class="link-button link-danger">Eliminar</button>
             </form>
           </div>
         <% }) %>
       </div>
-      <form action="/library/admin/images/books/<%= book.book_id %>" method="post" enctype="multipart/form-data" class="form-stack">
+      <form action="<%= basePath %>/library/admin/images/books/<%= book.book_id %>" method="post" enctype="multipart/form-data" class="form-stack">
         <label>Nueva imagen (JPG, PNG o WebP)
           <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
         </label>
@@ -113,13 +113,13 @@
           <dt><%= c.concept %><% if (c.reference_page) { %> <small>(p. <%= c.reference_page %>)</small><% } %></dt>
           <dd>
             <%= c.definition %>
-            <form action="/library/admin/concepts/books/<%= book.book_id %>/<%= c.concept_id %>/delete" method="post" class="inline-form">
+            <form action="<%= basePath %>/library/admin/concepts/books/<%= book.book_id %>/<%= c.concept_id %>/delete" method="post" class="inline-form">
               <button type="submit" class="link-button link-danger">Quitar</button>
             </form>
           </dd>
         <% }) %>
       </dl>
-      <form action="/library/admin/concepts/books/<%= book.book_id %>" method="post" class="form-stack">
+      <form action="<%= basePath %>/library/admin/concepts/books/<%= book.book_id %>" method="post" class="form-stack">
         <label>Concepto
           <select name="conceptId" required>
             <% conceptCatalog.forEach(function (c) { %>

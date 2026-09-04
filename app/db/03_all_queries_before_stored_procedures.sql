@@ -99,31 +99,41 @@ DEALLOCATE buscar_titulo_exacto;
 -- Sentencia:
 --   INSERT INTO books (isbn, title, price) VALUES ('978-0-EJ02-0001', 'Duplicado', 100);
 -- Resultado esperado: falla por violar `books_isbn_key` (UNIQUE).
--- Resultado real: PENDIENTE (ver docs/DEPLOYMENT_UBIQUITOUS.md / TEST_PLAN.md)
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  duplicate key value violates unique constraint "books_isbn_key"
+--   DETAIL:  Key (isbn)=(978-0-EJ02-0001) already exists.
 
 -- 4.2 Stock negativo
 -- Sentencia:
 --   UPDATE books SET stock = -5 WHERE book_id = 1;
 -- Resultado esperado: falla por CHECK (stock >= 0).
--- Resultado real: PENDIENTE
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  new row for relation "books" violates check constraint "books_stock_check"
+--   DETAIL:  Failing row contains (1, 978-0-EJ02-0001, Cien años de soledad, 1967, 320.00, -5, 1, 1, ...).
 
 -- 4.3 Precio inválido (cero o negativo)
 -- Sentencia:
 --   UPDATE books SET price = 0 WHERE book_id = 1;
 -- Resultado esperado: falla por CHECK (price > 0).
--- Resultado real: PENDIENTE
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  new row for relation "books" violates check constraint "books_price_check"
+--   DETAIL:  Failing row contains (1, 978-0-EJ02-0001, Cien años de soledad, 1967, 0.00, 18, 1, 1, ...).
 
 -- 4.4 FK inexistente
 -- Sentencia:
 --   INSERT INTO book_authors (book_id, author_id) VALUES (1, 999999);
 -- Resultado esperado: falla por violar la FK hacia `authors`.
--- Resultado real: PENDIENTE
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  insert or update on table "book_authors" violates foreign key constraint "book_authors_author_id_fkey"
+--   DETAIL:  Key (author_id)=(999999) is not present in table "authors".
 
 -- 4.5 Eliminación que viola una relación (autor con libros asociados)
 -- Sentencia:
 --   DELETE FROM authors WHERE author_id = (SELECT author_id FROM authors WHERE full_name = 'Gabriel García Márquez');
 -- Resultado esperado: falla por ON DELETE RESTRICT en book_authors.author_id.
--- Resultado real: PENDIENTE
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  update or delete on table "authors" violates foreign key constraint "book_authors_author_id_fkey" on table "book_authors"
+--   DETAIL:  Key (author_id)=(1) is still referenced from table "book_authors".
 
 -- 4.6 Creación de un segundo Administrador
 -- Sentencia:
@@ -132,4 +142,6 @@ DEALLOCATE buscar_titulo_exacto;
 -- Resultado esperado: falla por violar el índice único parcial
 --   ux_users_single_admin, y adicionalmente por el trigger
 --   trg_single_admin (05_triggers.sql) con un mensaje explícito.
--- Resultado real: PENDIENTE
+-- Resultado real (PostgreSQL 16.8, clúster propio 127.0.0.1:5433, 2026-09-04):
+--   ERROR:  Ya existe un Administrador; el sistema permite exactamente uno.
+--   CONTEXT:  PL/pgSQL function fn_prevent_second_admin() line 8 at RAISE

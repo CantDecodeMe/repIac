@@ -7,12 +7,12 @@
   </div>
 
   <nav class="admin-nav">
-    <a href="/library/admin/books">Libros</a>
-    <a href="/library/admin/catalogs/authors">Autores</a>
-    <a href="/library/admin/catalogs/genres">Géneros</a>
-    <a href="/library/admin/catalogs/formats">Formatos</a>
-    <a href="/library/admin/catalogs/categories">Categorías</a>
-    <a href="/library/admin/concepts">Conceptos</a>
+    <a href="<%= basePath %>/library/admin/books">Libros</a>
+    <a href="<%= basePath %>/library/admin/catalogs/authors">Autores</a>
+    <a href="<%= basePath %>/library/admin/catalogs/genres">Géneros</a>
+    <a href="<%= basePath %>/library/admin/catalogs/formats">Formatos</a>
+    <a href="<%= basePath %>/library/admin/catalogs/categories">Categorías</a>
+    <a href="<%= basePath %>/library/admin/concepts">Conceptos</a>
   </nav>
 
   <% if (lowStock.length) { %>
@@ -21,7 +21,7 @@
       <thead><tr><th>ISBN</th><th>Título</th><th>Stock</th></tr></thead>
       <tbody>
         <% lowStock.forEach(function (b) { %>
-          <tr><td><%= b.isbn %></td><td><a href="/library/admin/books/<%= b.book_id %>/edit"><%= b.title %></a></td><td><%= b.stock %></td></tr>
+          <tr><td><%= b.isbn %></td><td><a href="<%= basePath %>/library/admin/books/<%= b.book_id %>/edit"><%= b.title %></a></td><td><%= b.stock %></td></tr>
         <% }) %>
       </tbody>
     </table>

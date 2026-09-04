@@ -1,6 +1,6 @@
 <%- include('../../partials/header', { title }) %>
 <section>
-  <a class="back-link" href="/library/admin">← Volver al panel</a>
+  <a class="back-link" href="<%= basePath %>/library/admin">← Volver al panel</a>
   <h1>Conceptos</h1>
   <p class="hint">Catálogo de conceptos reutilizables. La definición de cada concepto se registra por libro desde la pantalla de edición de un libro (puede variar entre libros).</p>
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
@@ -10,7 +10,7 @@
   </ul>
 
   <h2>Agregar concepto</h2>
-  <form action="/library/admin/concepts" method="post" class="form-stack">
+  <form action="<%= basePath %>/library/admin/concepts" method="post" class="form-stack">
     <label>Nombre
       <input type="text" name="name" required>
     </label>

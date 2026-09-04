@@ -1,11 +1,11 @@
 <%- include('../partials/header', { title }) %>
 <section class="book-detail">
-  <a class="back-link" href="/library/catalog">← Volver al catálogo</a>
+  <a class="back-link" href="<%= basePath %>/library/catalog">← Volver al catálogo</a>
   <div class="book-detail-grid">
     <div class="book-detail-images">
       <% if (images.length) { %>
         <% images.forEach(function (img) { %>
-          <img src="<%= img.file_path %>" alt="<%= img.alt_text || book.title %>" class="<%= img.is_cover ? 'is-cover' : '' %>">
+          <img src="<%= basePath %><%= img.file_path %>" alt="<%= img.alt_text || book.title %>" class="<%= img.is_cover ? 'is-cover' : '' %>">
         <% }) %>
       <% } else { %>
         <span class="cover-placeholder">Sin imágenes</span>

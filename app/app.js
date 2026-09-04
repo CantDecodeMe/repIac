@@ -31,12 +31,35 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1); // detrás de Apache/mod_proxy
 
+// La app se publica bajo https://ubiquitous.udem.edu/~iac-615639/library por
+// un reverse proxy UserDir; Apache quita el prefijo antes de llegar aquí,
+// pero el navegador lo ve en su barra de direcciones. Por eso los redirects
+// y las URLs de las vistas deben llevar ese prefijo externo. Se configura
+// con APP_BASE_PATH en .env; vacío mantiene el comportamiento de montar en
+// la raíz (/library) para pruebas locales. (Ver DEPLOYMENT_UBIQUITOUS.md 5.)
+const BASE_PATH = (process.env.APP_BASE_PATH || '').replace(/\/+$/, '');
+
+app.use((req, res, next) => {
+  res.locals.basePath = BASE_PATH;
+  if (BASE_PATH) {
+    const originalRedirect = res.redirect.bind(res);
+    res.redirect = (target) => {
+      if (typeof target === 'string' && target.startsWith('/library')) {
+        return originalRedirect(BASE_PATH + target);
+      }
+      return originalRedirect(target);
+    };
+  }
+  next();
+});
+
 app.use(helmet({
   contentSecurityPolicy: false, // se define a mano en public/css si hace falta; evita bloquear EJS inline por defecto
 }));
 app.use(express.urlencoded({ extended: false }));
 app.use('/library/public', express.static(path.join(__dirname, 'public')));
 app.use('/library/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(session({
   store: new pgSession({ pool, tableName: 'user_sessions', createTableIfMissing: true }),
@@ -44,8 +67,14 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  // cookie path '/' en vez de '/library': express-session 1.19 exige que el
+// pathname que llega (Apache le entrega a Node /library/... SIN el prefijo
+// UserDir) empiece por el cookie path; y el navegador exige que el cookie
+// path empiece por la ruta que él pide (/~iac-615639/library/...). Único
+// prefijo común a ambos: '/'. HttpOnly + SameSite=Lax + secure en
+// producción limitan el riesgo de exponerla a rutas ajenas del mismo host.
   cookie: {
-    path: '/library',
+    path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE === 'true',
