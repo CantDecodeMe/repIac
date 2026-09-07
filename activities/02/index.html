@@ -9,6 +9,7 @@
 <body>
   <div class="page-tools" aria-label="Acciones del documento">
     <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
   </div>
 
   <main class="report-document">
@@ -19,59 +20,110 @@
       </div>
       <p class="report-kicker">Reporte de actividad · 02</p>
       <h1>Librería monolítica<br><em>Node.js + PostgreSQL</em></h1>
-      <p class="report-lead">Aplicación web monolítica (Express + EJS + PostgreSQL) para gestionar una
-        librería, con modelo de datos normalizado a 4FN y desplegada sobre un servidor compartido sin
-        privilegios de root.</p>
+      <p class="report-lead">Aplicación web monolítica (Express + EJS + PostgreSQL) para gestionar el
+        catálogo de una librería, con el modelo de datos normalizado a 4FN, CRUD completo,
+        autenticación por rol y subida de imágenes validada.</p>
       <div class="header-tags">
-        <span>Node.js 22</span><span>PostgreSQL 16</span><span>4FN</span><span>Sin sudo</span>
+        <span>Node.js</span><span>Express</span><span>EJS</span><span>PostgreSQL</span><span>4FN</span>
       </div>
     </header>
 
     <section>
       <div class="section-number">01</div>
       <div>
-        <h2>Resumen</h2>
-        <p>El enunciado (<a href="../../enunciados/Ejercicio-02.pdf">Ejercicio-02.pdf</a>) pedía una VM propia
-          en GCP. El despliegue real de este ejercicio es directo sobre <code>ubiquitous.udem.edu</code>, al
-          que se accede por SSH sin sudo — se verificó el entorno real (Node, PostgreSQL, Apache) antes de
-          diseñar nada, y se adaptaron las partes de infraestructura y despliegue del enunciado en
-          consecuencia, sin reducir el resto del alcance (BD 4FN, CRUD completo, seguridad, pruebas).</p>
-        <p>El entregable formal completo (16 secciones, documentación, SQL, y el proyecto empaquetado) vive en
-          <a href="../../ejercicio02/index.html">/ejercicio02/</a>, que es la URL que se publica como entrega
-          del ejercicio. Esta página es la entrada de journal del portafolio.</p>
+        <h2>Objetivo</h2>
+        <p>El enunciado (<a href="../../enunciados/Ejercicio-02.pdf">Ejercicio-02.pdf</a>) pedía construir
+          una aplicación web <strong>monolítica</strong> —renderizada en el servidor, sin API REST ni
+          intercambio de JSON entre frontend y backend— para administrar una librería en línea: libros,
+          autores, géneros, formatos, categorías, conceptos con su definición por libro e imágenes de
+          portada. El acceso es por cuenta registrada y un único usuario con rol Administrador gestiona
+          todo el catálogo.</p>
+        <p>La primera parte del ejercicio consistía en redactar los requisitos (alcance, actores,
+          requisitos funcionales y no funcionales, riesgos) <em>antes</em> de escribir código, y en dejar
+          un registro de decisiones de ingeniería con el formato
+          <em>necesidad → alternativas → decisión → justificación → riesgo → validación</em>.</p>
       </div>
     </section>
 
     <section>
       <div class="section-number">02</div>
       <div>
-        <h2>Dónde ver cada parte</h2>
+        <h2>Qué construí</h2>
         <div class="architecture">
-          <div><strong>Reporte completo</strong><span>ejercicio02/</span><small>16 secciones, diagramas, decisiones de ingeniería.</small></div>
+          <div><strong>routes/</strong><span>HTTP</span><small>Reciben la petición, validan parámetros y deciden qué vista renderizar.</small></div>
           <b>→</b>
-          <div><strong>Código y SQL</strong><span>ejercicio02/descargas/</span><small>Proyecto completo empaquetado en .tar.gz.</small></div>
+          <div><strong>services/</strong><span>Negocio + SQL</span><small>Única capa que consulta PostgreSQL, siempre con consultas parametrizadas.</small></div>
           <b>→</b>
-          <div><strong>App en vivo</strong><span>/~iac-615639/library</span><small>Reverse proxy hacia Node.js (ver estado abajo).</small></div>
+          <div><strong>views/</strong><span>EJS</span><small>Plantillas que sólo reciben datos ya procesados; sin SQL ni reglas de negocio.</small></div>
         </div>
+        <ul class="process-list">
+          <li><span>1</span><p><strong>Base de datos en 4FN.</strong> Esquema con PK/FK/UNIQUE/CHECK que
+            reflejan las reglas del negocio (stock ≥ 0, precio &gt; 0, ISBN único, un solo Administrador),
+            relaciones muchos-a-muchos libro–autor y libro–género, más <em>stored procedures</em>,
+            <em>triggers</em> y vistas propias.</p></li>
+          <li><span>2</span><p><strong>Autenticación y autorización.</strong> Contraseñas con hash
+            (bcrypt), sesión de servidor y middleware que restringe cada ruta <code>/admin/*</code> al
+            único Administrador; un usuario regular recibe un acceso denegado controlado, no un error
+            crudo.</p></li>
+          <li><span>3</span><p><strong>CRUD completo</strong> sobre libros y catálogos independientes
+            (autores, géneros, formatos, categorías, conceptos), con búsqueda por ISBN exacto y por
+            título insensible a mayúsculas y acentos.</p></li>
+          <li><span>4</span><p><strong>Subida de imágenes validada.</strong> Se revisa extensión, tipo
+            MIME real y tamaño; el nombre de archivo lo genera el servidor y nunca se usa el enviado por
+            el usuario. Una sola imagen puede marcarse como portada por libro.</p></li>
+          <li><span>5</span><p><strong>Manejo de errores centralizado.</strong> El detalle técnico va a
+            los logs del servidor; el usuario final siempre ve un mensaje genérico, nunca un stack trace
+            ni el SQL ejecutado.</p></li>
+        </ul>
       </div>
     </section>
 
     <section>
       <div class="section-number">03</div>
       <div>
-        <h2>Estado del despliegue en vivo</h2>
-        <p class="caption">Pendiente: esta sección se actualiza con la evidencia real (capturas y resultados
-          de la matriz de pruebas) una vez completado el despliegue contra <code>ubiquitous.udem.edu</code>
-          — ver <code>ejercicio02/docs/DEPLOYMENT_UBIQUITOUS.md</code>, sección 5, para la lista exacta de
-          evidencia pendiente.</p>
+        <h2>Decisiones de ingeniería</h2>
+        <ol class="process-list">
+          <li><span>A</span><p><strong>Monolito server-side</strong> en vez de SPA + API o
+            microservicios: lo exige el enunciado y, para un proyecto de un solo desarrollador, reduce la
+            complejidad operativa (un proceso, una base de código, sin contratos de API).</p></li>
+          <li><span>B</span><p><strong>Driver <code>pg</code> sin ORM.</strong> Un ORM esconde el SQL y
+            complica demostrar el modelo 4FN tal como se diseñó; con <code>pg</code> tengo control total
+            del pool de conexiones y de la parametrización. El costo es más código repetitivo y disciplina
+            manual para no concatenar strings.</p></li>
+          <li><span>C</span><p><strong>EJS</strong> para el HTML: sintaxis cercana a HTML+JS, parciales
+            reutilizables para navegación y formularios, y es la opción sugerida por el enunciado. El
+            riesgo —lógica filtrándose a las vistas— se controla con la regla de que <code>views/</code>
+            sólo recibe datos ya procesados.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-number">04</div>
+      <div>
+        <h2>Reflexión</h2>
+        <p>Lo que más me costó fue la parte de infraestructura. El enunciado asumía una VM propia en la
+          nube con privilegios de administrador; el entorno real con el que trabajé es un servidor
+          compartido sin acceso privilegiado. Tuve que verificar primero qué había disponible y adaptar
+          esa parte del ejercicio sin recortar el resto del alcance (base de datos 4FN, CRUD, seguridad,
+          pruebas). Me quedó claro que "desplegar" no es sólo subir archivos: hay que pensar en cómo se
+          mantiene vivo un proceso, en qué puerto escucha y en cómo se aísla de otros usuarios del mismo
+          servidor.</p>
+        <p>En el diseño de datos, llevar el esquema hasta 4FN me obligó a separar cosas que al principio
+          había metido en la misma tabla —por ejemplo, la definición de un concepto, que cambia según el
+          libro— y a apoyarme en restricciones de la base de datos en vez de confiar sólo en la
+          validación de la aplicación. La separación rutas / servicios / vistas se volvió incómoda de
+          respetar cuando tenía prisa, pero es justo lo que después hizo fácil cambiar una consulta sin
+          tocar la interfaz.</p>
       </div>
     </section>
 
     <aside class="ai-note">
       <strong>Uso responsable de IA</strong>
-      <p>Detalle completo de prompts, decisiones revisadas y cambios en
-        <a href="../../ejercicio02/docs/AI_PROMPT_HISTORY.md">AI_PROMPT_HISTORY.md</a> y
-        <a href="../../ejercicio02/docs/AI_CHANGELOG.md">AI_CHANGELOG.md</a>.</p>
+      <p>La IA apoyó la redacción de requisitos, la estructura inicial del proyecto y la revisión del
+        SQL. Las decisiones de arquitectura, el modelo de datos y los ajustes se comprendieron y
+        validaron con casos de prueba; la responsabilidad de los resultados permaneció en el
+        estudiante.</p>
     </aside>
 
     <footer class="report-footer">

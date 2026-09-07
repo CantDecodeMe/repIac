@@ -1,8 +1,34 @@
-.opencode/bin/
-.warp/remote-server/oz-v0.2026.08.12.21.54.stable_00
+# Este repo versiona SOLO el sitio journal estático (HTML/CSS/JS + PDFs).
+# Nada de aplicaciones desplegables, dependencias ni archivos de entorno/herramientas.
 
-# Ejercicio 02 — app/
-app/node_modules/
-app/.env
-app/uploads/*
-!app/uploads/.gitkeep
+# Basura de directorio home / herramientas (nunca debe commitearse)
+.bash*
+.profile
+.ssh/
+.npm/
+.cache/
+.config/
+.local/
+.warp/
+.opencode/
+.vscode/
+.idea/
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Empaquetados
+*.tar.gz
+*.tgz
+*.zip
+
+# SO
+.DS_Store
+Thumbs.db
