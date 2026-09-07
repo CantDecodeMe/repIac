@@ -3,28 +3,972 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reporte 03 · En preparación</title>
+  <title>Reporte 03 · Módulo SOAP para clasificar el catálogo</title>
   <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    /* Complementos propios de este reporte. Todo lo demás viene de report.css. */
+    .diagrama { margin: 24px 0 10px; }
+    .diagrama svg { width: 100%; height: auto; display: block; }
+
+    .tarea-tag {
+      display: inline-block; margin-bottom: 10px; padding: 4px 10px;
+      border-radius: 999px; background: var(--pink); color: white;
+      font-size: 0.58rem; font-weight: 800; letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision dl { margin: 0; font-size: 0.78rem; }
+    .decision dt {
+      float: left; clear: left; width: 92px; color: var(--pink);
+      font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; padding-top: 3px;
+    }
+    .decision dd { margin: 0 0 7px 100px; color: var(--muted); }
+
+    .metricas { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metricas div { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+    .metricas b { display: block; font-family: "Space Grotesk", sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--accent-dark); line-height: 1.1; }
+    .metricas small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.62rem; line-height: 1.35; }
+
+    .descargas { margin: 18px 0 0; padding: 0; list-style: none; font-size: 0.78rem; }
+    .descargas li { padding: 9px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; }
+    .descargas li:last-child { border-bottom: 0; }
+    .descargas a { color: var(--accent-dark); font-weight: 700; text-decoration: none; }
+    .descargas span { color: var(--muted); font-size: 0.72rem; text-align: right; }
+
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+
+    .fail { color: var(--pink); font-weight: 800; }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+
+    .galeria { margin: 20px 0 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .galeria figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--soft); }
+    .galeria img { width: 100%; height: auto; display: block; }
+    .galeria figcaption { padding: 10px 14px; font-size: 0.7rem; color: var(--muted); line-height: 1.45; }
+
+    @media (max-width: 650px) {
+      .galeria { grid-template-columns: 1fr; }
+      .metricas { grid-template-columns: repeat(2, 1fr); }
+      .indice { columns: 1; }
+      .decision dt { float: none; width: auto; }
+      .decision dd { margin-left: 0; }
+    }
+    @media print {
+      .metricas b { font-size: 15pt; }
+      .indice { display: none; }
+    }
+  </style>
 </head>
 <body>
   <div class="page-tools" aria-label="Acciones del documento">
     <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
   </div>
 
   <main class="report-document">
+
     <header class="report-header">
       <div class="course-line">
         <span>Universidad de Monterrey</span>
         <span>Integración de Aplicaciones Computacionales · 2026</span>
       </div>
       <p class="report-kicker">Reporte de actividad · 03</p>
-      <h1>Reporte en<br><em>preparación.</em></h1>
-      <p class="report-lead">Esta entrega del journal todavía no se ha redactado. Aquí aparecerá el reporte de la actividad 03 una vez resuelta.</p>
+      <h1>Módulo SOAP<br>sobre un<br><em>monolito vivo.</em></h1>
+      <p class="report-lead">Un servicio SOAP independiente en Flask que clasifica los conceptos del catálogo de la librería como IaaS, PaaS, SaaS o FaaS — compartiendo la base de datos del monolito Node.js sin tocar una sola línea de su código.</p>
+      <div class="header-tags">
+        <span>SOAP 1.1</span><span>WSDL + XSD</span><span>Flask · psycopg2</span><span>WS-Security</span><span>Java Swing</span><span>zeep</span><span>Docker</span><span>18/18 pruebas</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y scope</a></li>
+        <li><a href="#s2">02 · Arquitectura inicial y final</a></li>
+        <li><a href="#s3">03 · El monolito y el nuevo módulo</a></li>
+        <li><a href="#s4">04 · Diseño de datos</a></li>
+        <li><a href="#s5">05 · Contrato WSDL y tipos XSD</a></li>
+        <li><a href="#s6">06 · Operaciones implementadas</a></li>
+        <li><a href="#s7">07 · Request, Response y Fault</a></li>
+        <li><a href="#s8">08 · Seguridad y WS-Security · <b>Tarea 1</b></a></li>
+        <li><a href="#s9">09 · SOAP Fault y experiencia de usuario · <b>Tarea 2</b></a></li>
+        <li><a href="#s10">10 · Auditoría del contrato · <b>Tarea 3</b></a></li>
+        <li><a href="#s11">11 · Aplicación de escritorio</a></li>
+        <li><a href="#s12">12 · Interoperabilidad · <b>Tarea 4</b></a></li>
+        <li><a href="#s13">13 · Plan de pruebas</a></li>
+        <li><a href="#s14">14 · Evidencias de PostgreSQL</a></li>
+        <li><a href="#s15">15 · Decisiones y trade-offs</a></li>
+        <li><a href="#s16">16 · Problemas y soluciones</a></li>
+        <li><a href="#s17">17 · Métricas · <b>Tarea 5</b></a></li>
+        <li><a href="#s18">18 · Despliegue, IA y conclusiones</a></li>
+      </ul>
     </header>
+
+    <!-- ============================================================ -->
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y scope</h2>
+        <p>Diseñar, construir, probar y documentar un <strong>módulo SOAP independiente</strong> que se integre con la aplicación monolítica de librería del Ejercicio 02 (Node.js + PostgreSQL) <strong>sin modificar su código</strong>. El módulo publica un contrato WSDL, construye los sobres SOAP a mano con <code>xml.etree</code>, consulta y registra información en PostgreSQL vía <code>psycopg2</code>, y es consumido desde una aplicación de escritorio.</p>
+
+        <p><strong>Dentro del alcance:</strong> consultar conceptos pendientes del catálogo real; registrar clasificaciones Cloud (IaaS, PaaS, SaaS, FaaS); consultar el progreso de un usuario; contabilizar clientes de escritorio atendidos; detectar clasificaciones duplicadas y responder con SOAP Fault; mantener el monolito funcionando sin cambios.</p>
+
+        <p><strong>Fuera del alcance:</strong> migrar el monolito, crear una API REST, reemplazar PostgreSQL, modificar el esquema funcional existente, o usar Spyne/Zeep del lado servidor para ocultar la construcción del Envelope.</p>
+
+        <div class="aviso">
+          <strong>Una desviación honesta respecto al enunciado.</strong> El PDF nombra las tablas <code>books</code>, <code>concepts</code>, <code>book_concepts</code> y <code>categories</code>. La base real del Ejercicio 02 está en español —<code>libros</code>, <code>conceptos</code>, <code>categorias</code>— y <strong>no tiene tabla puente</strong>: <code>conceptos</code> cuelga directo de <code>libros</code> vía <code>conceptos.libro_id</code>. Se trabajó contra el esquema que existe, sin renombrar nada y sin inventar una capa de traducción que solo habría añadido una fuente de errores. Todo el módulo usa la nomenclatura real.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura inicial y final</h2>
+        <p>La arquitectura inicial era un monolito clásico: navegador → Express → PostgreSQL, todo en un proceso. La final añade un <strong>segundo propietario</strong> de la misma base de datos, con su propia frontera, su propio contrato y su propio usuario de PostgreSQL.</p>
+
+        <figure class="diagrama">
+          <svg viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Diagrama: las aplicaciones de escritorio hablan SOAP sobre HTTPS con el módulo Flask a través del túnel de Cloudflare; el módulo usa psycopg2 con el rol soap_svc contra el esquema soap y lee el esquema public en solo lectura; el monolito Node.js accede a public de forma independiente.">
+            <defs>
+              <marker id="f" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                <path d="M0,0 L9,4.5 L0,9 z" fill="#8b5cf6"/>
+              </marker>
+              <marker id="fr" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                <path d="M0,0 L9,4.5 L0,9 z" fill="#ec4899"/>
+              </marker>
+              <style>
+                .caja { fill:#f2f0fb; stroke:#c9c1ef; stroke-width:1.2; rx:10; }
+                .frontera { fill:none; stroke:#c9c1ef; stroke-width:1.3; stroke-dasharray:6 5; rx:14; }
+                .tit { font:700 12px Inter,sans-serif; fill:#1e1b3a; }
+                .sub { font:400 10px Inter,sans-serif; fill:#6b6690; }
+                .lbl { font:800 8.5px Inter,sans-serif; fill:#6b6690; letter-spacing:.06em; }
+                .flecha { font:600 9px Inter,sans-serif; fill:#6b6690; }
+                .conec { stroke:#8b5cf6; stroke-width:1.6; fill:none; }
+                .conec-r { stroke:#ec4899; stroke-width:1.6; fill:none; }
+              </style>
+            </defs>
+
+            <!-- Frontera: clientes de escritorio -->
+            <rect class="frontera" x="14" y="46" width="212" height="180"/>
+            <text class="lbl" x="24" y="38">APLICACIONES DE ESCRITORIO</text>
+
+            <rect class="caja" x="30" y="66" width="180" height="66"/>
+            <text class="tit" x="46" y="92">Cliente Java Swing</text>
+            <text class="sub" x="46" y="110">Envelope construido a mano</text>
+            <text class="sub" x="46" y="123">cliente-ej03.jar · laptop</text>
+
+            <rect class="caja" x="30" y="146" width="180" height="62"/>
+            <text class="tit" x="46" y="172">Cliente Python zeep</text>
+            <text class="sub" x="46" y="190">Generado desde el WSDL</text>
+
+            <!-- Cloudflare -->
+            <rect class="caja" x="292" y="52" width="196" height="52"/>
+            <text class="tit" x="308" y="76">Túnel Cloudflare</text>
+            <text class="sub" x="308" y="93">TLS · soap-ej03.maxthecoder.online</text>
+
+            <!-- Frontera: módulo SOAP -->
+            <rect class="frontera" x="276" y="128" width="228" height="184"/>
+            <text class="lbl" x="286" y="120">MÓDULO SOAP (CONTENEDOR ej03-soap)</text>
+
+            <rect class="caja" x="292" y="146" width="196" height="150"/>
+            <text class="tit" x="308" y="170">Flask · Python 3.12</text>
+            <text class="sub" x="308" y="192">soap/envelope.py — xml.etree</text>
+            <text class="sub" x="308" y="208">soap/seguridad.py — UsernameToken</text>
+            <text class="sub" x="308" y="224">soap/servicio.py — despachador</text>
+            <text class="sub" x="308" y="240">soap/faults.py — Faults tipados</text>
+            <text class="sub" x="308" y="256">db/repositorio.py — el único SQL</text>
+            <text class="sub" x="308" y="278">Contrato: /wsdl · /xsd</text>
+
+            <!-- Frontera: PostgreSQL -->
+            <rect class="frontera" x="566" y="128" width="318" height="184"/>
+            <text class="lbl" x="576" y="120">POSTGRESQL · BASE «libreria» (COMPARTIDA)</text>
+
+            <rect class="caja" x="584" y="146" width="284" height="70"/>
+            <text class="tit" x="600" y="170">esquema soap</text>
+            <text class="sub" x="600" y="188">clasificadores · clasificaciones_cloud</text>
+            <text class="sub" x="600" y="203">clientes_servidos · usuarios_wsse</text>
+
+            <rect class="caja" x="584" y="228" width="284" height="68"/>
+            <text class="tit" x="600" y="252">esquema public — del monolito</text>
+            <text class="sub" x="600" y="270">libros · conceptos · categorias</text>
+            <text class="sub" x="600" y="285">usuarios · pedidos · sesiones (sin acceso)</text>
+
+            <!-- Frontera: monolito -->
+            <rect class="frontera" x="276" y="374" width="228" height="96"/>
+            <text class="lbl" x="286" y="366">MONOLITO EJ. 02 — SIN CAMBIOS</text>
+
+            <rect class="caja" x="292" y="392" width="196" height="62"/>
+            <text class="tit" x="308" y="416">Node.js · Express · EJS</text>
+            <text class="sub" x="308" y="434">contenedor libreria-app-1</text>
+
+            <!-- Conexiones -->
+            <path class="conec" d="M210 99 H292" marker-end="url(#f)"/>
+            <path class="conec" d="M400 104 V146" marker-end="url(#f)"/>
+            <text class="flecha" x="214" y="92">HTTPS</text>
+            <text class="flecha" x="406" y="128">POST /soap · XML</text>
+
+            <path class="conec" d="M210 177 H250 V99 H292" marker-end="url(#f)"/>
+
+            <path class="conec" d="M488 190 H584" marker-end="url(#f)"/>
+            <text class="flecha" x="492" y="182">psycopg2 · escribe</text>
+
+            <path class="conec-r" d="M488 250 H584" marker-end="url(#fr)"/>
+            <text class="flecha" x="492" y="243">SELECT · solo lectura</text>
+            <text class="flecha" x="492" y="270">rol soap_svc</text>
+
+            <path class="conec" d="M488 423 H726 V296" marker-end="url(#f)"/>
+            <text class="flecha" x="560" y="415">usuario libreria · acceso independiente</text>
+
+            <!-- Leyenda -->
+            <line class="conec" x1="30" y1="500" x2="70" y2="500"/>
+            <text class="sub" x="78" y="504">Lectura y escritura</text>
+            <line class="conec-r" x1="230" y1="500" x2="270" y2="500"/>
+            <text class="sub" x="278" y="504">Solo lectura (mínimo privilegio)</text>
+          </svg>
+          <figcaption class="caption">Cada recuadro punteado es una frontera de aplicación. El módulo SOAP y el monolito comparten la base pero no el código, ni el usuario de PostgreSQL, ni el ciclo de despliegue: cada uno es propietario de su esquema.</figcaption>
+        </figure>
+
+        <p>El flujo lógico que pide el enunciado se lee de izquierda a derecha: <strong>aplicación de escritorio → cliente SOAP → HTTP POST/XML → módulo SOAP Flask → psycopg2 → PostgreSQL</strong>. La línea inferior muestra que el monolito Node.js sigue accediendo a PostgreSQL por su cuenta, con su propio usuario, sin enterarse de que el módulo existe.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s3">
+      <div class="section-number">03</div>
+      <div>
+        <h2>El monolito y el nuevo módulo</h2>
+        <p>El monolito del Ejercicio 02 corre en el Raspberry Pi como dos contenedores (<code>libreria-app-1</code> y <code>libreria-db-1</code>) levantados desde su propio <code>docker-compose.yml</code>. Sirve el catálogo, la autenticación, el carrito y el panel de administración.</p>
+
+        <p>El módulo SOAP es un <strong>tercer contenedor</strong>, con su propio compose, su propia imagen y su propio ciclo de vida. Se conecta a dos redes Docker: la del monolito, para alcanzar PostgreSQL, y la red <code>services</code>, donde vive el túnel de Cloudflare que lo publica.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Aspecto</th><th>Monolito (Ej. 02)</th><th>Módulo SOAP (Ej. 03)</th></tr></thead>
+            <tbody>
+              <tr><td>Lenguaje</td><td>Node.js · Express · EJS</td><td>Python 3.12 · Flask</td></tr>
+              <tr><td>Protocolo</td><td>HTML sobre HTTP</td><td>SOAP 1.1 sobre HTTPS</td></tr>
+              <tr><td>Contrato</td><td>Implícito (las vistas)</td><td>Explícito (WSDL + XSD)</td></tr>
+              <tr><td>Usuario de BD</td><td><code>libreria</code> — dueño</td><td><code>soap_svc</code> — mínimo privilegio</td></tr>
+              <tr><td>Esquema propio</td><td><code>public</code></td><td><code>soap</code></td></tr>
+              <tr><td>Acceso al otro</td><td>ninguno</td><td>3 tablas de <code>public</code>, solo lectura</td></tr>
+              <tr><td>Despliegue</td><td><code>~/libreria/docker-compose.yml</code></td><td><code>deploy-iac/ejercicio-03/</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="caption">Se verificó al terminar que <code>~/libreria</code> no tiene un solo archivo modificado y que <code>information_schema</code> sigue listando exactamente las diez tablas originales en <code>public</code>.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Diseño de datos y tablas propias</h2>
+        <p>Todo lo nuevo vive en un <strong>esquema <code>soap</code> separado</strong> dentro de la misma base. No hay un solo <code>ALTER</code>, ni una tabla nueva en <code>public</code>. La ventaja práctica es que la frontera se vuelve explícita y el permiso de mínimo privilegio se audita de un vistazo.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tabla</th><th>Para qué</th><th>Restricciones que importan</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>soap.clasificadores</code></td>
+                <td>Identidad propia de quien clasifica.</td>
+                <td><code>UNIQUE(email)</code> · <code>CHECK</code> de formato de correo. <strong>No reutiliza <code>public.usuarios</code></strong>, como exige el enunciado.</td>
+              </tr>
+              <tr>
+                <td><code>soap.clasificaciones_cloud</code></td>
+                <td>El registro de negocio: qué concepto se clasificó como qué.</td>
+                <td><code>UNIQUE(clasificador_id, concepto_id)</code> — es lo que dispara el Fault 409. <code>CHECK</code> del enum de modelos. FK a <code>public.conceptos</code> con <code>ON DELETE CASCADE</code>.</td>
+              </tr>
+              <tr>
+                <td><code>soap.clientes_servidos</code></td>
+                <td>Contabilidad de peticiones por tipo de cliente.</td>
+                <td><code>UNIQUE(tipo_cliente, identificador)</code> · <code>CHECK(peticiones_atendidas &gt;= 0)</code>.</td>
+              </tr>
+              <tr>
+                <td><code>soap.usuarios_wsse</code></td>
+                <td>Credenciales de WS-Security.</td>
+                <td>Solo el hash PBKDF2. Nunca la contraseña.</td>
+              </tr>
+              <tr>
+                <td><code>soap.nonces_wsse</code></td>
+                <td>Anti-replay: nonces ya consumidos.</td>
+                <td><code>PRIMARY KEY(nonce)</code> — el conflicto <em>es</em> la detección del replay.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>La lógica no vive en Python sino en <strong>funciones de PostgreSQL</strong>. <code>soap.sp_registrar_clasificacion()</code> toca tres tablas en una sola unidad transaccional del lado del servidor de base de datos: da de alta o actualiza al clasificador, inserta la clasificación e incrementa el contador del cliente. Si cualquiera falla, no queda nada a medias.</p>
+
+        <p>La vista <code>soap.v_conceptos_catalogo</code> es la frontera de lectura: hace el <em>join</em> de <code>conceptos + libros + categorias</code> y expone solo seis columnas. <code>precio</code>, <code>stock</code>, <code>portada</code>, <code>editorial_id</code> y <code>orden</code> nunca salen de la base.</p>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Mínimo privilegio, ejecutable</h3>
+        <p>El rol <code>soap_svc</code> es <code>NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT</code>, y sus permisos son literalmente los del archivo <code>03_minimo_privilegio.sql</code>:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Objeto</th><th>Permiso</th><th>Por qué</th></tr></thead>
+            <tbody>
+              <tr><td><code>public.libros</code>, <code>conceptos</code>, <code>categorias</code></td><td class="ok">SELECT</td><td>Es lo que el contrato necesita mostrar.</td></tr>
+              <tr><td><code>public.usuarios</code>, <code>pedidos</code>, <code>detalle_pedido</code>, <code>sesiones</code>, <code>autores</code>, <code>editoriales</code>, <code>libro_autor</code></td><td class="fail">ninguno</td><td>El módulo no tiene por qué verlas. Revocado explícitamente.</td></tr>
+              <tr><td><code>soap.clasificadores</code>, <code>clasificaciones_cloud</code>, <code>clientes_servidos</code></td><td class="ok">SELECT, INSERT, UPDATE</td><td>Sus propios datos.</td></tr>
+              <tr><td>las mismas, <code>DELETE</code></td><td class="fail">revocado</td><td>El historial de clasificaciones es evidencia; no se borra desde la aplicación.</td></tr>
+              <tr><td><code>soap.usuarios_wsse</code></td><td class="ok">SELECT + UPDATE(ultimo_acceso)</td><td>Verifica credenciales; nunca las crea ni las cambia.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s5">
+      <div class="section-number">05</div>
+      <div>
+        <h2>Contrato WSDL y tipos XSD</h2>
+        <p>El contrato se escribió <strong>antes</strong> que la implementación: el servicio Flask existe para cumplirlo, no al revés. Es WSDL 1.1, SOAP 1.1, estilo <strong>document/literal</strong> — se descartó <code>rpc/encoded</code> porque el WS-I Basic Profile lo desaconseja y varios stacks modernos ya no lo generan.</p>
+
+        <p>Los tipos viven en un XSD propio (<code>clasificador-libreria.xsd</code>) que se sirve <em>embebido</em> dentro de <code>&lt;wsdl:types&gt;</code>. Así un generador de clientes obtiene el contrato completo en una sola descarga, sin depender de resolver un <code>schemaLocation</code> relativo — un detalle que ahorra problemas reales con <code>wsimport</code> y <code>dotnet-svcutil</code>.</p>
+
+        <p>La validación empieza en el contrato, no en el código. <code>ModeloCloud</code> es un <code>xsd:simpleType</code> con <code>enumeration</code> de los cuatro valores; <code>Correo</code> lleva un <code>pattern</code>; <code>Limite</code> acota entre 1 y 200. Un cliente que mande <code>"XaaS"</code> está violando el contrato antes de que el servidor opine.</p>
+
+        <pre><code>&lt;xsd:simpleType name="ModeloCloud"&gt;
+  &lt;xsd:restriction base="xsd:string"&gt;
+    &lt;xsd:enumeration value="IaaS"/&gt;
+    &lt;xsd:enumeration value="PaaS"/&gt;
+    &lt;xsd:enumeration value="SaaS"/&gt;
+    &lt;xsd:enumeration value="FaaS"/&gt;
+  &lt;/xsd:restriction&gt;
+&lt;/xsd:simpleType&gt;</code></pre>
+
+        <div class="version-strip">
+          <span><b>targetNamespace</b> http://maxthecoder.online/ej03/clasificador-libreria</span>
+          <span><b>Estilo</b> document/literal</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s6">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Operaciones implementadas</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Operación</th><th>Entrada</th><th>Salida</th><th>Origen</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>ObtenerConceptosPendientes</code></td>
+                <td><code>correo?</code>, <code>limite?</code>, <code>tipoCliente?</code></td>
+                <td>Lista de conceptos con término, definición, libro, ISBN y categoría</td>
+                <td>Ejercicio guiado</td>
+              </tr>
+              <tr>
+                <td><code>RegistrarClasificacion</code></td>
+                <td><code>clasificador{nombre, apellidos, correo}</code>, <code>conceptoId</code>, <code>modelo</code>, <code>tipoCliente?</code></td>
+                <td>Folio, estado, término, libro, modelo y fecha</td>
+                <td>Ejercicio guiado</td>
+              </tr>
+              <tr>
+                <td><code>ObtenerProgresoUsuario</code></td>
+                <td><code>correo</code>, <code>tipoCliente?</code></td>
+                <td>Total, clasificados, pendientes y desglose por modelo</td>
+                <td>Ejercicio guiado</td>
+              </tr>
+              <tr>
+                <td><code>ObtenerEstadisticasPorModelo</code></td>
+                <td><code>tipoCliente?</code></td>
+                <td>Conteo global por IaaS/PaaS/SaaS/FaaS y total general</td>
+                <td><strong>Tarea 1</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>«Pendiente» es relativo al clasificador: son los conceptos que <em>ese correo</em> todavía no ha clasificado. Sin correo, la operación devuelve el catálogo completo. Esa decisión evita que dos personas se estorben trabajando en paralelo.</p>
+
+        <p>La operación se resuelve por el <strong>QName del primer hijo del <code>Body</code></strong>, no por la cabecera <code>SOAPAction</code>. <code>SOAPAction</code> es una pista de enrutamiento que el cliente controla y que algunos stacks omiten; el cuerpo es el contrato. Además se verifica que el elemento pertenezca al namespace correcto, para que un <code>RegistrarClasificacion</code> de otro namespace no se confunda con el nuestro.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s7" class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Request, Response y Fault</h2>
+        <p>Los tres sobres son capturas reales del plan de pruebas. La contraseña aparece censurada por la propia herramienta de pruebas, que la sustituye antes de escribir la evidencia.</p>
+
+        <h3 style="margin-top:20px;font-size:0.95rem;font-weight:750;">SOAP Request — <code>RegistrarClasificacion</code></h3>
+        <pre><code>&lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:cls="http://maxthecoder.online/ej03/clasificador-libreria"&gt;
+  &lt;soap:Header&gt;
+    &lt;wsse:Security xmlns:wsse="...oasis-200401-wss-wssecurity-secext-1.0.xsd"
+                   xmlns:wsu="...oasis-200401-wss-wssecurity-utility-1.0.xsd"&gt;
+      &lt;wsse:UsernameToken&gt;
+        &lt;wsse:Username&gt;clasificador&lt;/wsse:Username&gt;
+        &lt;wsse:Password Type="...#PasswordText"&gt;********&lt;/wsse:Password&gt;
+        &lt;wsse:Nonce&gt;fDdqtGf9xxgQraKNe8KsdA==&lt;/wsse:Nonce&gt;
+        &lt;wsu:Created&gt;2026-09-07T21:43:23Z&lt;/wsu:Created&gt;
+      &lt;/wsse:UsernameToken&gt;
+    &lt;/wsse:Security&gt;
+  &lt;/soap:Header&gt;
+  &lt;soap:Body&gt;
+    &lt;cls:RegistrarClasificacion&gt;
+      &lt;cls:clasificador&gt;
+        &lt;cls:nombre&gt;Max&lt;/cls:nombre&gt;
+        &lt;cls:apellidos&gt;Rubio Alanis&lt;/cls:apellidos&gt;
+        &lt;cls:correo&gt;pruebas.plan@maxthecoder.online&lt;/cls:correo&gt;
+      &lt;/cls:clasificador&gt;
+      &lt;cls:conceptoId&gt;12&lt;/cls:conceptoId&gt;
+      &lt;cls:modelo&gt;IaaS&lt;/cls:modelo&gt;
+      &lt;cls:tipoCliente&gt;curl&lt;/cls:tipoCliente&gt;
+    &lt;/cls:RegistrarClasificacion&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre>
+
+        <h3 style="margin-top:20px;font-size:0.95rem;font-weight:750;">SOAP Response</h3>
+        <pre><code>&lt;soap:Envelope ...&gt;&lt;soap:Body&gt;
+  &lt;cls:RegistrarClasificacionResponse&gt;
+    &lt;cls:clasificacionId&gt;10&lt;/cls:clasificacionId&gt;
+    &lt;cls:estado&gt;REGISTRADA&lt;/cls:estado&gt;
+    &lt;cls:termino&gt;Agujero negro&lt;/cls:termino&gt;
+    &lt;cls:tituloLibro&gt;Breve historia del tiempo&lt;/cls:tituloLibro&gt;
+    &lt;cls:modelo&gt;IaaS&lt;/cls:modelo&gt;
+    &lt;cls:registradaEn&gt;2026-09-07T21:43:23.666928+00:00&lt;/cls:registradaEn&gt;
+  &lt;/cls:RegistrarClasificacionResponse&gt;
+&lt;/soap:Body&gt;&lt;/soap:Envelope&gt;</code></pre>
+
+        <h3 style="margin-top:20px;font-size:0.95rem;font-weight:750;">SOAP Fault — clasificación duplicada (409)</h3>
+        <pre><code>&lt;soap:Envelope ...&gt;&lt;soap:Body&gt;
+  &lt;soap:Fault&gt;
+    &lt;faultcode&gt;soap:Client&lt;/faultcode&gt;
+    &lt;faultstring&gt;Este clasificador ya registro una clasificacion para ese concepto.&lt;/faultstring&gt;
+    &lt;faultactor&gt;clasificador-libreria&lt;/faultactor&gt;
+    &lt;detail&gt;
+      &lt;cls:DetalleFalla&gt;
+        &lt;cls:tipo&gt;ClasificacionDuplicada&lt;/cls:tipo&gt;
+        &lt;cls:codigo&gt;409&lt;/cls:codigo&gt;
+        &lt;cls:mensaje&gt;Este clasificador ya registro una clasificacion para ese concepto.&lt;/cls:mensaje&gt;
+      &lt;/cls:DetalleFalla&gt;
+    &lt;/detail&gt;
+  &lt;/soap:Fault&gt;
+&lt;/soap:Body&gt;&lt;/soap:Envelope&gt;</code></pre>
+
+        <div class="aviso">
+          <strong>Por qué el Fault viaja con HTTP 500 y no con 409.</strong> SOAP 1.1 obliga a devolver 500 en cualquier Fault, incluso los de cliente. Choca con la intuición REST, pero es lo que esperan <code>wsimport</code>, <code>zeep</code> y .NET: si se devolviera 409, varios stacks ni siquiera leerían el cuerpo y el cliente perdería el Fault tipado. El código semántico viaja dentro de <code>&lt;detail&gt;</code>, que es donde el contrato dice que está.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s8">
+      <div class="section-number">08</div>
+      <div>
+        <p class="tarea-tag">Tarea 1 · Estadísticas por modelo + WS-Security</p>
+        <h2>Seguridad y WS-Security</h2>
+
+        <p>Se protegieron <strong>las cuatro operaciones</strong> con <code>wsse:UsernameToken</code>, no solo la sensible. El contrato (<code>/wsdl</code>, <code>/xsd</code>) sí queda público: tiene que serlo para ser interoperable y para que el profesor pueda inspeccionarlo. Lo que se protege son las operaciones, no su descripción.</p>
+
+        <div class="decision">
+          <h3>PasswordText sobre TLS, no PasswordDigest</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Autenticar al cliente sin almacenar contraseñas en texto plano, como exige el enunciado.</dd>
+            <dt>Decisión</dt><dd>Perfil <code>PasswordText</code> sobre HTTPS, con <code>Nonce</code> de un solo uso y ventana de validez sobre <code>wsu:Created</code>. En la base solo vive un PBKDF2-HMAC-SHA256 con 260 000 iteraciones y sal por usuario.</dd>
+            <dt>Justificación</dt><dd><code>PasswordDigest</code> parece más seguro porque la contraseña no viaja en claro, pero obliga al servidor a recomputar <code>SHA1(nonce + created + password)</code> — es decir, a conservar la contraseña de forma recuperable. Eso es exactamente lo que el enunciado prohíbe, con un paso extra. Además SHA1 sin iteraciones es un mal derivador de claves en 2026.</dd>
+            <dt>Ventajas</dt><dd>Solo se almacena un hash lento. El anti-replay es real y verificable (prueba N07b). El mecanismo es estándar: <code>zeep</code> lo habla sin adaptadores.</dd>
+            <dt>Limitaciones</dt><dd>Sin TLS, <code>PasswordText</code> expone la credencial. El servicio está pensado para vivir detrás del túnel de Cloudflare y nunca en HTTP plano. El servidor rechaza explícitamente <code>PasswordDigest</code> con un mensaje que explica por qué, para que no se confunda con una carencia.</dd>
+          </dl>
+        </div>
+
+        <p>La verificación del hash usa <code>hmac.compare_digest()</code>: comparar con <code>==</code> filtra información por el tiempo de respuesta. Y cuando el usuario no existe, se verifica igual contra un hash ficticio, para que el tiempo no delate qué usuarios están dados de alta.</p>
+
+        <p>La operación de la Tarea 1, <code>ObtenerEstadisticasPorModelo</code>, se agregó <strong>sin romper las tres anteriores</strong>: mismo <code>portType</code>, mismo binding, mismo endpoint, mismos mensajes. Un cliente compilado contra la versión previa del contrato sigue funcionando sin recompilar — que es la definición práctica de extender en vez de romper.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prueba de seguridad</th><th>Resultado</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td>Credenciales correctas</td><td>Operación atendida</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Contraseña incorrecta</td><td><code>AutenticacionFallida</code> (401)</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Sin <code>UsernameToken</code></td><td><code>AutenticacionFallida</code> (401)</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td>Reenviar un sobre válido tal cual</td><td>Rechazado por nonce repetido</td><td><span class="ok">Correcto</span></td></tr>
+              <tr><td><code>Created</code> de hace dos horas</td><td>Rechazado por ventana vencida</td><td><span class="ok">Correcto</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="caption">El mensaje de credenciales inválidas es deliberadamente vago: no distingue «usuario inexistente» de «contraseña incorrecta», para no regalar información a quien enumere usuarios.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s9">
+      <div class="section-number">09</div>
+      <div>
+        <p class="tarea-tag">Tarea 2 · SOAP Fault y experiencia de usuario</p>
+        <h2>Errores: qué ve el usuario y qué queda en el log</h2>
+
+        <p>Cada falla tiene dos caras. Al cliente le llega un <code>faultcode</code>, un mensaje legible y un <code>&lt;detail&gt;</code> con <code>tipo</code> estable y <code>codigo</code> numérico. Al log del servidor le llega el detalle técnico: SQLSTATE, excepción original y stack. <strong>El detalle técnico nunca cruza la frontera del servicio.</strong></p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Caso</th><th>faultcode</th><th>tipo / código</th><th>Lo que ve el usuario en la GUI</th></tr></thead>
+            <tbody>
+              <tr><td>Clasificación duplicada</td><td><code>soap:Client</code></td><td><code>ClasificacionDuplicada</code> / 409</td><td>«Ya clasificaste ese concepto antes. Elige otro de la lista de pendientes.»</td></tr>
+              <tr><td>Concepto inexistente</td><td><code>soap:Client</code></td><td><code>ConceptoInexistente</code> / 404</td><td>«Ese concepto ya no está en el catálogo. Vuelve a cargar los pendientes.»</td></tr>
+              <tr><td>Modelo inválido</td><td><code>soap:Client</code></td><td><code>ModeloInvalido</code> / 422</td><td>«Selecciona uno de los cuatro modelos: IaaS, PaaS, SaaS o FaaS.»</td></tr>
+              <tr><td>XML inválido</td><td><code>soap:Client</code></td><td><code>XmlInvalido</code> / 400</td><td>«El servicio no pudo leer la petición. Reporta este caso si se repite.»</td></tr>
+              <tr><td>Credenciales malas</td><td><code>soap:Client</code></td><td><code>AutenticacionFallida</code> / 401</td><td>«El servicio no aceptó las credenciales. Revisa usuario y contraseña.»</td></tr>
+              <tr><td>Falla de PostgreSQL</td><td><code>soap:Server</code></td><td><code>ErrorInterno</code> / 500</td><td>«El servicio tuvo un problema interno. Intenta de nuevo en un momento.»</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>La GUI decide sobre el campo <code>tipo</code>, <strong>nunca sobre el texto del mensaje</strong>. El texto está escrito para una persona y puede cambiar; el tipo es parte del contrato. Esa es la razón por la que el <code>&lt;detail&gt;</code> está tipado en el XSD y no es texto libre.</p>
+
+        <p>La distinción entre <code>soap:Client</code> y <code>soap:Server</code> tampoco es decorativa: el cliente Java muestra un diálogo de advertencia y deja el formulario editable cuando la culpa es del cliente, y un diálogo de error cuando el problema es del servidor. La acción que se espera de la persona es distinta en cada caso — corregir algo, o volver a intentar más tarde.</p>
+
+        <p>Nunca se filtra stack trace, ruta interna, consulta SQL ni contraseña. Se comprobó revisando los sobres de las diez pruebas negativas: ninguna respuesta contiene la palabra <code>psycopg2</code>, un SQLSTATE ni una ruta del contenedor.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s10" class="page-break-before">
+      <div class="section-number">10</div>
+      <div>
+        <p class="tarea-tag">Tarea 3 · Auditoría del contrato WSDL</p>
+        <h2>El contrato como superficie pública</h2>
+
+        <p>La regla de ingeniería que gobierna el XSD: <strong>el contrato expone capacidades y los datos necesarios para ejercerlas, no la estructura de la base de datos</strong>. Esta es la auditoría dato por dato.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Dato</th><th>Operación</th><th>¿Se expone?</th><th>Justificación</th></tr></thead>
+            <tbody>
+              <tr><td><code>conceptos.termino</code>, <code>definicion</code></td><td>ObtenerConceptosPendientes</td><td class="ok">Sí</td><td>Es lo que el usuario está clasificando; sin esto la operación no sirve.</td></tr>
+              <tr><td><code>libros.titulo</code>, <code>isbn</code></td><td>ObtenerConceptosPendientes</td><td class="ok">Sí</td><td>Contexto para desambiguar términos que se repiten entre libros.</td></tr>
+              <tr><td><code>categorias.nombre</code></td><td>ObtenerConceptosPendientes</td><td class="ok">Sí</td><td>Ayuda a decidir; es un dato ya público en el catálogo web.</td></tr>
+              <tr><td><code>libros.precio</code>, <code>stock</code></td><td>—</td><td class="fail">No</td><td>Datos comerciales del monolito. Irrelevantes para clasificar.</td></tr>
+              <tr><td><code>libros.portada</code>, <code>descripcion</code>, <code>editorial_id</code></td><td>—</td><td class="fail">No</td><td>Ruido. Cada columna expuesta es una columna que después no se puede quitar sin romper clientes.</td></tr>
+              <tr><td><code>conceptos.orden</code></td><td>—</td><td class="fail">No</td><td>Detalle de presentación interno del monolito.</td></tr>
+              <tr><td><code>public.usuarios</code> (todo)</td><td>—</td><td class="fail">No</td><td>Datos personales de otro sistema. El rol de BD ni siquiera puede leerlos.</td></tr>
+              <tr><td>Credenciales de BD</td><td>—</td><td class="fail">No</td><td>Información sensible interna.</td></tr>
+              <tr><td><code>clasificaciones_cloud.clasificacion_id</code></td><td>RegistrarClasificacion</td><td class="ok">Sí</td><td>Folio que el usuario puede citar; es un identificador opaco, no revela volumen de negocio.</td></tr>
+              <tr><td>Conteos agregados por modelo</td><td>ObtenerEstadisticasPorModelo</td><td class="ok">Sí, autenticado</td><td>Agregado, sin identificar a nadie. Aun así se protege: revela actividad del sistema.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Tres riesgos identificados y su mitigación</h3>
+
+        <ol class="process-list" style="margin-top:14px;">
+          <li><span>1</span><p><strong>El WSDL revela el modelo de negocio.</strong> Un atacante que lea el contrato sabe que existen clasificadores identificados por correo, que hay una restricción de unicidad y que el catálogo tiene conceptos con ISBN. <em>Mitigación:</em> el contrato no expone conteos, ni rangos de identificadores, ni nombres de tablas o columnas reales — <code>conceptoId</code> no dice <code>conceptos.concepto_id</code>. La información que queda es la mínima para consumir el servicio.</p></li>
+          <li><span>2</span><p><strong>La identidad del clasificador la declara el cliente.</strong> El correo llega en el cuerpo del mensaje; quien autentica es el <code>UsernameToken</code> del Header. Es decir: un usuario autenticado puede registrar clasificaciones a nombre de cualquier correo. <em>Mitigación parcial:</em> queda auditado (todas las peticiones pasan por una credencial verificada y se registra el <code>ultimo_acceso</code>). <em>Mitigación real pendiente:</em> ligar <code>usuarios_wsse</code> con <code>clasificadores</code> y rechazar correos que no correspondan a la credencial. Se documenta como deuda consciente, no como descuido.</p></li>
+          <li><span>3</span><p><strong>Acoplamiento por la clave foránea al monolito.</strong> <code>clasificaciones_cloud.concepto_id</code> referencia <code>public.conceptos</code>. Si el monolito renombra esa tabla o su clave, el módulo se rompe. <em>Mitigación:</em> se guardan <code>isbn</code> y <code>termino</code> desnormalizados en cada clasificación, como copia de auditoría que sobrevive al cambio; y el <code>ON DELETE CASCADE</code> preserva intacto el borrado en cascada que el monolito ya tenía.</p></li>
+        </ol>
+
+        <p style="margin-top:16px;"><strong>Conclusión sobre contrato estricto y mantenibilidad.</strong> Un contrato estricto cuesta más de escribir y paga después. Los tipos con <code>enumeration</code> y <code>pattern</code> convirtieron tres clases de error en rechazos del contrato antes de tocar la base. Y lo que <em>no</em> se expuso es lo que permite refactorizar por dentro: mientras <code>ConceptoPendiente</code> siga teniendo esos seis campos, la vista, las tablas y hasta el motor de base de datos pueden cambiar sin avisar a nadie.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s11">
+      <div class="section-number">11</div>
+      <div>
+        <h2>La aplicación de escritorio como cliente SOAP</h2>
+        <p>El cliente es una aplicación <strong>Java Swing</strong>, continuación del clasificador Cloud del Ejercicio 01. La diferencia de fondo: en el Ejercicio 01 la clasificación se calculaba en local con expresiones regulares; ahora <strong>se registra en el servidor</strong> y el escritorio es solo el cliente de un contrato.</p>
+
+        <p>Se entrega como <strong>JAR ejecutable</strong>. En la laptop basta con:</p>
+        <pre><code>curl -O https://soap-ej03.maxthecoder.online/descargas/cliente-ej03.jar
+java -jar cliente-ej03.jar</code></pre>
+
+        <p>Sin dependencias externas y con el endpoint público ya compilado dentro, así que funciona recién descargado. El JAR se compila <strong>dentro de un contenedor <code>eclipse-temurin</code></strong>: el Raspberry Pi no tiene JDK y no se le instaló uno.</p>
+
+        <div class="architecture">
+          <div><strong>Interfaz</strong><span>VentanaPrincipal</span><small>Captura datos, muestra resultados y traduce los Fault. No conoce XML.</small></div>
+          <b>→</b>
+          <div><strong>Protocolo</strong><span>ClienteSoap</span><small>Construye el Envelope con DOM, firma el UsernameToken, interpreta la respuesta.</small></div>
+          <b>→</b>
+          <div><strong>Errores</strong><span>FallaSoap</span><small>Un Fault interpretado, con su traducción a lenguaje humano.</small></div>
+        </div>
+        <p class="caption">La separación es deliberada: <code>ClienteSoap</code> no importa una sola clase de Swing, así que el modo consola y la ventana ejercitan exactamente el mismo código de protocolo.</p>
+
+        <p><strong>La GUI no conoce PostgreSQL.</strong> No hay driver JDBC, ni cadena de conexión, ni un nombre de tabla en todo el proyecto del cliente. Lo único que sabe del servidor es el contrato. Si mañana el módulo cambiara de motor de base de datos, este código no se entera.</p>
+
+        <p>El sobre se construye con <code>createElementNS()</code> y <code>setTextContent()</code>, nunca concatenando cadenas: el escapado de <code>&amp;</code> y <code>&lt;</code> lo hace el <code>Transformer</code>. Un apellido con un ampersand viaja correctamente en lugar de romper el XML — y nadie puede inyectar marcado desde un campo del formulario. El mismo cuidado está del lado del servidor.</p>
+
+        <p>La ventana tiene una pestaña <strong>Evidencia</strong> que muestra el sobre exacto enviado y el recibido, incluidos los Fault. Sirve para el reporte sin necesidad de un proxy ni un capturador de tráfico; la contraseña aparece censurada.</p>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Evidencia en pantalla</h3>
+        <p>Seis capturas del flujo completo contra el servicio público: cargar pendientes, registrar clasificaciones, consultar progreso, la vista de estadísticas y el manejo de una credencial inválida.</p>
+
+        <div class="galeria">
+          <figure>
+            <img src="fotos/gui-01-pendientes.png" alt="Ventana con la lista de conceptos pendientes de clasificar, cargada del servicio SOAP" loading="lazy">
+            <figcaption>Conceptos pendientes entregados por <code>ObtenerConceptosPendientes</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-02-registrada.png" alt="Confirmación de una clasificación registrada por el servicio SOAP" loading="lazy">
+            <figcaption>Clasificación registrada: folio, término, libro y modelo que devuelve la respuesta.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-04-registrada-saas.png" alt="Clasificación registrada para el modelo SaaS" loading="lazy">
+            <figcaption>Otra clasificación, esta vez con modelo SaaS.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-03-progreso.png" alt="Panel de progreso del usuario con totales por modelo" loading="lazy">
+            <figcaption>Progreso del usuario a partir de <code>ObtenerProgresoUsuario</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-05-estadisticas.png" alt="Estadísticas globales por modelo cloud" loading="lazy">
+            <figcaption>Vista de <code>ObtenerEstadisticasPorModelo</code>, la estadística de la Tarea 1.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-credenciales-incorrectas.png" alt="Diálogo de advertencia por credenciales inválidas" loading="lazy">
+            <figcaption>Credenciales inválidas: la GUI interpreta el Fault y deja el formulario editable.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s12">
+      <div class="section-number">12</div>
+      <div>
+        <p class="tarea-tag">Tarea 4 · Interoperabilidad</p>
+        <h2>Un segundo cliente, otro lenguaje, cero conocimiento previo</h2>
+
+        <p>Se generó un cliente con <strong><code>zeep</code></strong> (Python) a partir del WSDL publicado. Corre en su propia imagen Docker, sin compartir nada con el servicio: ni código, ni dependencias, ni versiones.</p>
+
+        <pre><code>cliente = Client("https://soap-ej03.maxthecoder.online/wsdl", wsse=token)
+respuesta = cliente.service.ObtenerConceptosPendientes(correo=..., limite=5)
+registro  = cliente.service.RegistrarClasificacion(
+    clasificador={"nombre": "Max", "apellidos": "Rubio Alanis", "correo": ...},
+    conceptoId=elegido.conceptoId, modelo="PaaS", tipoCliente="python-zeep")</code></pre>
+
+        <p>Nadie le describió los mensajes a <code>zeep</code>: descubrió las cuatro operaciones, sus tipos y el binding leyendo el contrato. Y convirtió el <code>soap:Fault</code> del duplicado en una excepción de Python con el <code>detail</code> tipado, también derivado del XSD. <strong>Si el contrato estuviera mal formado, esto habría fallado antes de enviar el primer byte</strong> — que es exactamente lo que lo convierte en una prueba y no en una demostración.</p>
+
+        <h3 style="margin-top:22px;font-size:1rem;font-weight:750;">El hallazgo interesante</h3>
+        <p><code>zeep</code> <strong>no emite <code>Nonce</code> ni <code>Created</code></strong> cuando se usa el perfil <code>PasswordText</code>; solo lo hace con <code>PasswordDigest</code>. Nuestro servicio los exige, porque el anti-replay lo dan esos dos campos y no el digest. Hubo que añadir una subclase de doce líneas.</p>
+
+        <p>La causa de fondo es que <strong>la política de seguridad no viaja en el WSDL 1.1</strong>. El contrato describe operaciones, tipos y binding, pero no dice «hace falta un Nonce». Un cliente generado descubre solo la <em>forma</em> de los mensajes; para autenticarse necesita documentación fuera de banda. Es justo el hueco que WS-Policy vino a llenar después, y el límite honesto de lo que un WSDL puede prometer: <strong>basta para consumir el servicio, no basta para autenticarse contra él</strong>.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>&nbsp;</th><th>Java Swing (manual)</th><th>Python zeep (generado)</th></tr></thead>
+            <tbody>
+              <tr><td>Líneas para hablar el protocolo</td><td>~330</td><td>1 — <code>Client(wsdl)</code></td></tr>
+              <tr><td>Cómo conoce los tipos</td><td>Porque el programador los escribió</td><td>Los descubrió del XSD</td></tr>
+              <tr><td>Si cambia el contrato</td><td>Hay que editar y recompilar</td><td>Se entera al releer el WSDL</td></tr>
+              <tr><td>Control sobre el sobre</td><td>Total</td><td>El que zeep permita</td></tr>
+              <tr><td>Manejo del Fault</td><td>Se interpreta a mano el <code>detail</code></td><td>Excepción tipada automática</td></tr>
+              <tr><td>Valor didáctico</td><td>Se ve el sobre completo</td><td>El sobre queda oculto</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">El cliente manual enseña el protocolo; el generado es el que se usaría en producción. Que ambos hablen con el mismo servicio sin que el servicio sepa cuál es cuál es, precisamente, la definición de interoperable.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s13" class="page-break-before">
+      <div class="section-number">13</div>
+      <div>
+        <h2>Plan de pruebas y resultados</h2>
+        <p>18 casos automatizados en <code>scripts/pruebas.py</code>, ejecutables con un comando. Cada uno guarda su solicitud y su respuesta en <code>evidencias/</code>, con la contraseña censurada antes de escribir el archivo.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Prueba</th><th>Resultado esperado</th><th>Obtenido</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td>P01</td><td>Obtener conceptos pendientes</td><td>Lista válida del catálogo real</td><td>5 conceptos</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>P02</td><td>Registrar IaaS / PaaS / SaaS / FaaS</td><td>4 registros exitosos</td><td>Folios 10–13</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>P03</td><td>Consultar progreso del usuario</td><td>Totales coherentes con P02</td><td>4 de 21</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>P04</td><td>Estadísticas por modelo (Tarea 1)</td><td>Conteo por los cuatro modelos</td><td>1 de cada uno</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N01</td><td>Repetir la misma clasificación</td><td>SOAP Fault 409</td><td><code>ClasificacionDuplicada</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N02</td><td>Concepto inexistente</td><td>SOAP Fault de cliente</td><td><code>ConceptoInexistente</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N03</td><td>Modelo <code>XaaS</code></td><td>SOAP Fault de validación</td><td><code>ModeloInvalido</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N04</td><td>XML malformado</td><td>Fault de cliente, sin ejecutar SQL</td><td><code>XmlInvalido</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N05</td><td>Contraseña incorrecta</td><td>Fault de autenticación</td><td><code>AutenticacionFallida</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N06</td><td>Sin <code>UsernameToken</code></td><td>Fault de autenticación</td><td><code>AutenticacionFallida</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N07</td><td>Reenviar un sobre válido tal cual</td><td>Rechazo por nonce repetido</td><td><code>AutenticacionFallida</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N08</td><td><code>Created</code> de hace dos horas</td><td>Rechazo por ventana vencida</td><td><code>AutenticacionFallida</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N09</td><td>Operación fuera del contrato</td><td>Fault de cliente</td><td><code>OperacionDesconocida</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>N10</td><td>Sobre con <code>DOCTYPE</code> (billion laughs)</td><td>Rechazo antes de parsear</td><td><code>XmlInvalido</code></td><td><span class="ok">Pasa</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="result-callout"><strong>Resultado final</strong><span>18 de 18 casos correctos</span></div>
+
+        <p style="margin-top:16px;">La prueba <strong>N04 merece una nota</strong>. El enunciado pide que ante un XML inválido «no se ejecute SQL». Que eso sea cierto no se afirma: se comprueba en los tiempos de respuesta. Los casos que llegan a la base tardan ~80&nbsp;ms; N04, N09 y N10 responden en ~3&nbsp;ms, porque el despachador valida la forma del sobre <em>antes</em> de abrir la transacción. El orden del código —parsear, autenticar, validar, y solo entonces consultar— es lo que hace verdadera esa promesa.</p>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Los mismos 18 casos, pero por internet</h3>
+
+        <p>Pasar en <code>localhost</code> no demuestra que el servicio funcione. La suite se ejecuta también contra <code>https://soap-ej03.maxthecoder.online</code>, recorriendo la cadena completa: DNS → Cloudflare → túnel → contenedor → PostgreSQL.</p>
+
+        <pre><code>$ ./scripts/run-tests.sh --publico
+
+  Plan de pruebas contra https://soap-ej03.maxthecoder.online
+  ...
+  Los 18 casos pasaron</code></pre>
+
+        <p>Esa corrida sale desde <strong>un contenedor con un resolver público</strong>, no desde el Raspberry Pi. No es un rodeo gratuito: el Pi resuelve por Tailscale MagicDNS, que cachea respuestas negativas y seguía devolviendo <code>NXDOMAIN</code> del hostname recién creado mucho después de que el resto del mundo ya lo viera. Probar desde fuera elimina esa variable y, de paso, mide lo que de verdad importa —el camino que recorre una laptop cualquiera— en lugar de un atajo por la red interna del propio servidor.</p>
+
+        <div class="aviso">
+          <strong>La primera corrida pública falló entera, y el motivo no estaba en el servicio.</strong> Cloudflare devolvía <code>403</code> a todas las peticiones. El sobre era idéntico al que funcionaba en local; lo que cambiaba era el <code>User-Agent</code>: <code>Python-urllib/3.12</code>, el valor por defecto de la biblioteca estándar, es una firma de bot conocida y el modo anti-bot de Cloudflare la bloquea antes de que llegue al túnel. Con un <code>User-Agent</code> de producto pasa. No es un truco para esquivar un filtro: identificarse es lo que hace cualquier cliente serio —<code>zeep</code> manda <code>Zeep/4.3.1</code>, el cliente Java manda <code>Java-http-client/21</code>— y ninguno de los dos fue bloqueado. El que estaba mal era el default de <code>urllib</code>.
+        </div>
+
+        <p>Y el arnés de pruebas también salió tocado del incidente, con dos defectos propios: informaba <code>HTTP 403 OK</code> —etiquetaba como «OK» cualquier respuesta sin Fault, aunque fuera un rechazo— y reventaba con un <code>ParseError</code> crudo al recibir HTML en vez de XML. Un arnés que miente sobre lo que observó es peor que no tenerlo, así que ahora reporta el estado tal cual y, si la primera operación no devuelve un sobre SOAP, se detiene mostrando el principio de la respuesta.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s14">
+      <div class="section-number">14</div>
+      <div>
+        <h2>Evidencias de PostgreSQL</h2>
+        <p>Verificación directa en la base, no a través del servicio.</p>
+
+        <pre><code>$ docker exec libreria-db-1 psql -U libreria -d libreria \
+    -c "select clasificacion_id, termino, modelo, origen_cliente, isbn
+        from soap.clasificaciones_cloud order by 1;"
+
+ clasificacion_id |      termino      | modelo | origen_cliente |      isbn
+------------------+-------------------+--------+----------------+----------------
+               10 | Agujero negro     | IaaS   | curl           | 978-6077473662
+               11 | Flecha del tiempo | PaaS   | curl           | 978-6077473662
+               12 | Singularidad      | SaaS   | curl           | 978-6077473662
+               13 | Cibernética       | FaaS   | curl           | 978-8437507149
+               15 | Agujero negro     | PaaS   | python-zeep    | 978-6077473662
+               17 | Retroalimentación | IaaS   | curl           | 978-8437507149
+               18 | Estirpe           | PaaS   | curl           | 978-0307474728
+               19 | Macondo           | SaaS   | curl           | 978-0307474728
+               20 | Realismo mágico   | FaaS   | curl           | 978-0307474728
+               22 | Deuda técnica     | IaaS   | curl           | 978-8441532109
+               23 | Principio DRY     | PaaS   | curl           | 978-8441532109
+               24 | Test unitario     | SaaS   | curl           | 978-8441532109
+               25 | Caballería        | FaaS   | curl           | 978-8420412146
+               27 | Flecha del tiempo | PaaS   | python-zeep    | 978-6077473662
+(14 rows)
+
+$ ... -c "select tipo_cliente, identificador, peticiones_atendidas
+          from soap.clientes_servidos;"
+
+ tipo_cliente |          identificador          | peticiones_atendidas
+--------------+---------------------------------+----------------------
+ curl         | pruebas.plan@maxthecoder.online |                   18
+ curl         | clasificador                    |                    3
+ java-swing   | clasificador                    |                    2
+ otro         | clasificador                    |                    6
+ python-zeep  | interop.zeep@maxthecoder.online |                    4</code></pre>
+
+        <p><code>clientes_servidos</code> distingue correctamente los tres tipos de cliente que consumieron el servicio: el arnés de pruebas (<code>curl</code>), la aplicación de escritorio (<code>java-swing</code>) y el cliente generado desde el WSDL (<code>python-zeep</code>). Las clasificaciones 15 y 27 las registró el cliente interoperable — otra imagen, otro lenguaje, sin conocer la implementación; la 27 llegó además por el endpoint público, resolviendo la dirección desde el propio WSDL descargado.</p>
+
+        <p>Los huecos en la numeración (14, 16, 21, 26) no son un error: son las transacciones que <strong>se revirtieron</strong>. Cada intento duplicado de la prueba N01 consume un valor de la secuencia antes de que el <code>UNIQUE</code> lo rechace y el <code>ROLLBACK</code> deshaga la inserción. Que la secuencia no retroceda es el comportamiento correcto de PostgreSQL —las secuencias son deliberadamente no transaccionales para no serializar a los escritores— y aquí sirve de evidencia adicional: el rollback ocurrió de verdad.</p>
+
+        <h3 style="margin-top:22px;font-size:1rem;font-weight:750;">La evidencia del mínimo privilegio es lo que <em>falla</em></h3>
+        <p>Un permiso que funciona no demuestra nada; lo que demuestra el mínimo privilegio es lo que el rol <strong>no</strong> puede hacer:</p>
+
+        <pre><code>$ psql -U soap_svc -d libreria -c "select * from usuarios;"
+ERROR:  permission denied for table usuarios
+
+$ psql -U soap_svc -d libreria -c "update conceptos set termino='alterado' ..."
+ERROR:  permission denied for table conceptos
+
+$ psql -U soap_svc -d libreria -c "delete from soap.clasificaciones_cloud;"
+ERROR:  permission denied for table clasificaciones_cloud
+
+$ psql -U soap_svc -d libreria -c "select count(*) from public.conceptos;"
+ conceptos_visibles
+--------------------
+                 21</code></pre>
+
+        <p>El último es el contraste: el rol <em>sí</em> puede leer el catálogo, que es su trabajo. No puede leer usuarios, no puede escribir en el monolito, y ni siquiera puede borrar sus propios registros de negocio — el historial de clasificaciones es evidencia.</p>
+
+        <p><strong>El monolito quedó intacto.</strong> <code>information_schema</code> sigue listando exactamente las diez tablas originales en <code>public</code>, y ningún archivo de <code>~/libreria</code> fue modificado en todo el ejercicio.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s15" class="page-break-before">
+      <div class="section-number">15</div>
+      <div>
+        <h2>Decisiones de ingeniería y trade-offs</h2>
+
+        <div class="decision">
+          <h3>Esquema <code>soap</code> aparte, no tablas nuevas en <code>public</code></h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Compartir la base con el monolito sin modificarlo.</dd>
+            <dt>Decisión</dt><dd>Un esquema PostgreSQL nuevo, con las tablas del módulo dentro.</dd>
+            <dt>Justificación</dt><dd>La frontera se vuelve explícita y el <code>GRANT</code> de mínimo privilegio se audita de un vistazo: el rol tiene <code>SELECT</code> sobre exactamente tres tablas de <code>public</code>.</dd>
+            <dt>Ventajas</dt><dd>Cero riesgo de colisión de nombres. Se puede eliminar el módulo entero con un <code>DROP SCHEMA</code> sin tocar el monolito.</dd>
+            <dt>Limitaciones</dt><dd>Sigue siendo la misma instancia: una consulta pesada del módulo puede afectar al monolito. Aislar de verdad requeriría réplicas de solo lectura.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>La lógica de datos vive en funciones de PostgreSQL</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Que una operación que toca tres tablas sea atómica.</dd>
+            <dt>Decisión</dt><dd><code>sp_registrar_clasificacion()</code> en plpgsql; la capa Python solo la invoca con parámetros.</dd>
+            <dt>Justificación</dt><dd>La transacción vive donde viven los datos. Además, los errores de negocio se señalizan con SQLSTATE propios (<code>SO404</code>, <code>SO409</code>, <code>SO422</code>) que el servicio traduce a Faults tipados sin interpretar cadenas de texto.</dd>
+            <dt>Ventajas</dt><dd>Rollback garantizado. El SQL es constante: no hay una sola consulta construida por concatenación en el proyecto.</dd>
+            <dt>Limitaciones</dt><dd>La lógica queda repartida entre dos lenguajes; depurar plpgsql es más incómodo que depurar Python.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Clave foránea al monolito, con copia de auditoría</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Garantizar que no se clasifiquen conceptos inexistentes.</dd>
+            <dt>Decisión</dt><dd>FK a <code>public.conceptos</code> con <code>ON DELETE CASCADE</code>, más <code>isbn</code> y <code>termino</code> desnormalizados.</dd>
+            <dt>Justificación</dt><dd>La FK da integridad real; las columnas copiadas son el registro histórico que sobrevive si el monolito cambia el catálogo debajo.</dd>
+            <dt>Ventajas</dt><dd>El borrado en cascada que el monolito ya tenía (<code>libros → conceptos</code>) sigue funcionando sin cambios.</dd>
+            <dt>Limitaciones</dt><dd>Es acoplamiento explícito. Si el monolito renombrara <code>conceptos.concepto_id</code>, el módulo se rompe. Reducirlo del todo exigiría sincronizar por eventos en vez de compartir base — que es exactamente la discusión que abre el enunciado.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Docker con <code>restart: unless-stopped</code> y túnel por nombre de contenedor</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Que el servicio sobreviva a reinicios del Raspberry Pi.</dd>
+            <dt>Decisión</dt><dd>Un contenedor con nombre fijo <code>ej03-soap</code>, en las redes del monolito y de <code>services</code>. El puerto se publica solo en <code>127.0.0.1</code>.</dd>
+            <dt>Justificación</dt><dd>Docker arranca con el sistema y vuelve a levantar el contenedor solo. El túnel de Cloudflare lo alcanza por DNS interno de Docker; publicar en <code>0.0.0.0</code> expondría el servicio en la LAN sin TLS.</dd>
+            <dt>Ventajas</dt><dd>El único camino desde internet pasa por HTTPS. Nada se instaló en el sistema anfitrión: ni Python, ni JDK, ni <code>pip</code>.</dd>
+            <dt>Limitaciones</dt><dd>El túnel de este Pi está gestionado por token, así que el alta del hostname es un paso manual en el dashboard y no queda versionado en el repositorio.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s16">
+      <div class="section-number">16</div>
+      <div>
+        <h2>Problemas encontrados y soluciones</h2>
+
+        <ol class="process-list">
+          <li><span>1</span><p><strong>El esquema real no era el del enunciado.</strong> El PDF asume <code>books</code>, <code>concepts</code>, <code>book_concepts</code>, <code>categories</code>. La base tiene nombres en español y no tiene tabla puente. <em>Solución:</em> trabajar contra el esquema real, documentar la diferencia y no construir una capa de traducción que solo habría añadido superficie de error.</p></li>
+
+          <li><span>2</span><p><strong>Guiones dobles dentro de comentarios XML.</strong> El WSDL usaba <code>--</code> como guión tipográfico en la prosa del encabezado. Es ilegal en un comentario XML, y <code>lxml</code> lo rechazó cuando <code>zeep</code> intentó leer el contrato. <em>Solución:</em> sustituirlos. El fallo lo detectó el cliente generado, no una revisión visual — un argumento a favor de probar el contrato con un stack real.</p></li>
+
+          <li><span>3</span><p><strong>El marcador de sustitución aparecía dentro de un comentario.</strong> El WSDL menciona en su cabecera el marcador que se reemplaza por el XSD… escribiéndolo literalmente. La sustitución textual lo cambió en los dos sitios e inyectó el esquema completo dentro de un comentario. <em>Solución:</em> describir el mecanismo sin nombrar el marcador, y dejar constancia del porqué en el propio comentario.</p></li>
+
+          <li><span>4</span><p><strong><code>zeep</code> no manda <code>Nonce</code> con <code>PasswordText</code>.</strong> Se descubrió al ejecutar la Tarea 4 contra el servicio ya funcionando. <em>Solución:</em> una subclase de doce líneas en el cliente. Resultó ser el hallazgo más interesante del ejercicio: expuso que WSDL 1.1 no transporta política de seguridad.</p></li>
+
+          <li><span>5</span><p><strong>Un fallo tragado dejaba la transacción abortada.</strong> La primera versión de <code>marcar_acceso()</code> capturaba el error y seguía «como si nada». En PostgreSQL, un error deja la transacción entera abortada, así que todo lo siguiente fallaba con un mensaje mucho más confuso. <em>Solución:</em> dejar que propague. Tragarse errores no los hace desaparecer, solo mueve el síntoma.</p></li>
+
+          <li><span>6</span><p><strong>El contenedor servía un WSDL viejo.</strong> Los archivos del contrato se copian a la imagen en tiempo de construcción, así que <code>docker compose restart</code> no bastaba: hacía falta <code>--build</code>. <em>Solución:</em> reconstruir siempre, y dejarlo dentro de <code>deploy.sh</code> para no volver a pisar el mismo cable.</p></li>
+
+          <li><span>7</span><p><strong>El hostname público se registró como <code>soap-ej3</code>, sin el cero.</strong> El primer intento de usar el cliente desde la laptop dio <code>Could not resolve host</code>. El despliegue estaba perfecto y el servicio funcionaba; lo que fallaba era un carácter en el dashboard de Cloudflare. <em>Cómo se encontró:</em> leyendo la configuración de ingress que el túnel recibe del dashboard —<code>docker logs cloudflare-tunnel | grep 'Updated to new configuration'</code>— que lista los hostnames activos y su destino. Ahí estaba <code>soap-ej3.maxthecoder.online → http://ej03-soap:8000</code>, correcto en todo menos en el nombre. Esta es exactamente la limitación documentada en la sección 15: con un túnel gestionado por token, el enrutamiento no está versionado en el repositorio y un typo no lo detecta ninguna revisión de código. <em>Mitigación:</em> <code>scripts/verificar-publico.sh</code> compara el hostname registrado con el configurado y, cuando no coinciden, señala el parecido en vez de limitarse a decir que falla.</p></li>
+
+          <li><span>8</span><p><strong><code>docker logs</code> devolvía una configuración de hace tres semanas.</strong> Al comprobar si el hostname ya estaba corregido, <code>docker logs … | tail -1</code> seguía mostrando la versión 22 mientras <code>docker logs --tail 4</code> mostraba la 26. <em>Causa:</em> sin <code>--tail</code>, Docker recorre los archivos de log ya rotados en un orden que no es cronológico, así que la última línea que emite puede ser antiquísima. Ordenar por marca de tiempo tampoco arreglaba nada, porque las líneas nuevas ni siquiera aparecían en la salida. <em>Solución:</em> pedir <code>--tail</code> siempre, con un comentario explicando por qué ese argumento aparentemente redundante no se puede quitar.</p></li>
+
+          <li><span>9</span><p><strong>Cloudflare bloqueaba el arnés de pruebas con 403.</strong> Los 18 casos fallaban contra el endpoint público mientras el mismo sobre pasaba con <code>curl</code>. La diferencia era el <code>User-Agent</code>: <code>Python-urllib/3.12</code> es una firma de bot conocida. <em>Solución:</em> identificarse con un nombre de producto, que es lo que hacen <code>zeep</code> y el cliente Java —ninguno fue bloqueado—. De rebote apareció un defecto propio del arnés: reportaba <code>HTTP 403 OK</code> y reventaba con un <code>ParseError</code> crudo al recibir HTML. Se corrigió para que informe el estado tal cual y se detenga con un mensaje útil; una herramienta de pruebas que suaviza lo que observó es peor que no tenerla.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s17">
+      <div class="section-number">17</div>
+      <div>
+        <p class="tarea-tag">Tarea 5 · Medición técnica y reflexión SOAP</p>
+        <h2>Métricas para comparar después con REST</h2>
+
+        <div class="metricas">
+          <div><b>930</b><small>líneas del servicio (Python, sin comentarios)</small></div>
+          <div><b>385</b><small>líneas de WSDL + XSD</small></div>
+          <div><b>814</b><small>líneas del cliente Java Swing</small></div>
+          <div><b>148</b><small>líneas del cliente zeep</small></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Medición sobre <code>RegistrarClasificacion</code></th><th>Bytes</th><th>Datos de negocio</th><th>Estructura XML</th></tr></thead>
+            <tbody>
+              <tr><td>Solicitud completa (con WS-Security)</td><td>1&nbsp;252</td><td>120 B — <strong>9&nbsp;%</strong></td><td>1&nbsp;132 B — <strong>90&nbsp;%</strong></td></tr>
+              <tr><td>Respuesta</td><td>564</td><td>86 B — <strong>15&nbsp;%</strong></td><td>478 B — <strong>84&nbsp;%</strong></td></tr>
+              <tr><td>SOAP Fault (duplicado)</td><td>629</td><td colspan="2">Un error cuesta más bytes que la respuesta correcta.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Dicho de otra forma: para transportar <strong>120 bytes</strong> de información real —un nombre, un correo, un número y cuatro letras— se enviaron <strong>1 252</strong>. El 90 % del tráfico es sobre, namespaces y cabecera de seguridad. Los mismos datos en JSON sobre REST rondarían los 150 bytes, con la autenticación en una cabecera HTTP.</p>
+
+        <p><strong>Qué fue boilerplate y qué dependió de la operación.</strong> El <code>Envelope</code>, las declaraciones de namespace y el <code>UsernameToken</code> completo son idénticos en las cuatro operaciones: unos 900 bytes fijos por petición. Lo que cambia es el contenido del <code>Body</code>, entre 60 y 200 bytes. En una operación que devuelve una lista larga la proporción mejora mucho; en una escritura pequeña como esta, el sobre pesa diez veces más que el mensaje.</p>
+
+        <p><strong>Tiempo de desarrollo:</strong> aproximadamente una sesión de trabajo continua para el servicio, el contrato, los dos clientes, el despliegue y las pruebas — con asistencia de IA documentada en la sección siguiente.</p>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Reflexión</h3>
+
+        <p><strong>¿Qué pasa si agrego un campo obligatorio a <code>RegistrarClasificacion</code> sin actualizar los clientes?</strong> Se rompen todos. Un campo obligatorio nuevo es un cambio incompatible: los clientes existentes mandarían sobres que ya no validan. La forma de extender sin romper es exactamente la que se usó en la Tarea 1 — agregar una operación nueva, o un elemento con <code>minOccurs="0"</code>.</p>
+
+        <p><strong>¿Por qué el tipado XSD aporta certeza?</strong> Porque mueve la validación del código al contrato, donde ambas partes la ven. <code>ModeloCloud</code> con <code>enumeration</code> significa que «solo hay cuatro modelos» es una afirmación verificable por cualquier herramienta, no una convención escrita en un comentario que alguien tiene que recordar.</p>
+
+        <p><strong>¿Por qué un SOAP Fault es parte del contrato y no solo un error HTTP?</strong> Porque un 500 no le dice al cliente qué hacer. El Fault tipado sí: <code>ClasificacionDuplicada</code> significa «cambia de concepto», <code>ErrorInterno</code> significa «vuelve a intentar». Los errores son casos de uso, y los casos de uso pertenecen al contrato.</p>
+
+        <p><strong>¿Es suficiente confiar en el correo que manda el cliente?</strong> No, y está documentado como riesgo en la sección 10. El correo identifica; el <code>UsernameToken</code> autentica. Hoy cualquier usuario autenticado puede clasificar a nombre de otro correo. La corrección es ligar credencial y clasificador.</p>
+
+        <p><strong>¿Cuándo justificaría el overhead de XML en 2026?</strong> Cuando el contrato formal vale más que los bytes: integraciones entre organizaciones que no se coordinan a diario, sistemas bancarios y gubernamentales donde el WSDL <em>es</em> el documento del acuerdo, o entornos donde generar el cliente desde el contrato elimina una clase entera de errores de integración. Para una API interna con despliegues frecuentes, el overhead no se justifica.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s18">
+      <div class="section-number">18</div>
+      <div>
+        <h2>Despliegue, descargas y conclusiones</h2>
+
+        <p>El módulo corre en un Raspberry Pi como contenedor Docker con <code>restart: unless-stopped</code>, lo que lo hace sobrevivir a reinicios del equipo. Se publica a internet a través de un túnel de Cloudflare, que lo alcanza por el nombre del contenedor dentro de la red Docker; el puerto local solo escucha en <code>127.0.0.1</code>. Nada se instaló en el sistema anfitrión: ni Python, ni JDK, ni <code>pip</code> — todo lo que hizo falta compilar o ejecutar corrió dentro de contenedores.</p>
+
+        <div class="version-strip">
+          <span><b>Endpoint</b> soap-ej03.maxthecoder.online/soap</span>
+          <span><b>Contrato</b> /wsdl</span>
+          <span><b>Runtime</b> Python 3.12 · PostgreSQL 17</span>
+        </div>
+
+        <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Descargas</h3>
+        <ul class="descargas">
+          <li><a href="https://soap-ej03.maxthecoder.online/wsdl">clasificador-libreria.wsdl</a><span>Contrato completo, con el XSD embebido</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/xsd">clasificador-libreria.xsd</a><span>Tipos, por separado</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/cliente-ej03.jar">cliente-ej03.jar</a><span>Cliente de escritorio · requiere JRE 17+</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/cliente-ej03-fuentes.zip">cliente-ej03-fuentes.zip</a><span>Código fuente Java + scripts de compilación</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/cliente_zeep.py">cliente_zeep.py</a><span>Cliente interoperable (Tarea 4)</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/01_esquema_soap.sql">01_esquema_soap.sql</a><span>Tablas propias del módulo</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/02_vistas_procs.sql">02_vistas_procs.sql</a><span>Vista y stored procedures</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/03_minimo_privilegio.sql">03_minimo_privilegio.sql</a><span>Rol y permisos, ejecutables</span></li>
+          <li><a href="https://soap-ej03.maxthecoder.online/descargas/">Índice de descargas</a><span>Listado completo servido por el propio módulo</span></li>
+        </ul>
+        <p class="caption" style="margin-top:12px;">Ninguna descarga incluye <code>.env</code>, contraseñas, tokens ni cadenas de conexión. El despliegue aborta explícitamente si detecta un <code>.env</code> en el directorio publicado.</p>
+
+        <h3 style="margin-top:26px;font-size:1rem;font-weight:750;">Conclusiones</h3>
+
+        <p>Lo que más enseñó este ejercicio no fue SOAP, sino <strong>qué significa integrarse con un sistema que no puedes tocar</strong>. La restricción de no modificar el monolito obligó a decisiones que en un proyecto nuevo se habrían tomado por comodidad y no por diseño: un esquema aparte, un usuario de base de datos con permisos contados, columnas de auditoría desnormalizadas para sobrevivir a cambios ajenos.</p>
+
+        <p>El contrato antes que el código resultó ser un consejo con dientes. Escribir el WSDL primero forzó a decidir <em>qué</em> expone el servicio antes de saber <em>cómo</em> lo iba a implementar, y eso mantuvo fuera del contrato media docena de columnas que habrían acabado ahí por inercia. Los tipos con <code>enumeration</code> y <code>pattern</code> convirtieron tres clases de error en rechazos antes de tocar la base.</p>
+
+        <p>Sobre SOAP en sí: el 90 % de overhead es real y es caro. Pero también lo es que un cliente en otro lenguaje consumiera el servicio leyendo un archivo, sin una línea de documentación de por medio, y convirtiera un error de negocio en una excepción tipada. Ese es el intercambio. Para una API interna no vale la pena; para un acuerdo entre organizaciones que no se hablan a diario, el contrato formal es justamente lo que se está comprando.</p>
+
+        <p>Y el hallazgo que no estaba en el guion —que WSDL 1.1 no transporta política de seguridad— fue el recordatorio más útil: un contrato promete menos de lo que uno asume, y la única forma de descubrir dónde está el límite es intentar consumirlo con un stack que no escribiste tú.</p>
+      </div>
+    </section>
+
+    <aside class="ai-note">
+      <strong>Uso responsable de IA</strong>
+      <p>Se utilizó Claude (Anthropic) como asistente durante todo el ejercicio, en sesión de terminal con acceso al Raspberry Pi. <strong>Qué se aceptó:</strong> la estructura del proyecto, el andamiaje del servicio Flask, la redacción del WSDL/XSD y el borrador de este reporte. <strong>Qué se modificó:</strong> la decisión de seguridad —la propuesta inicial contemplaba PasswordDigest con la contraseña recuperable en la base, y se cambió a PasswordText sobre TLS con PBKDF2 y anti-replay por Nonce, precisamente porque el enunciado prohíbe almacenar contraseñas reversibles—; también se descartó una capa de traducción de nombres inglés/español que solo añadía superficie de error. <strong>Qué se rechazó:</strong> tragar el error de <code>marcar_acceso()</code>, que dejaba la transacción abortada silenciosamente.</p>
+      <p>Los cuatro problemas de la sección 16 se detectaron ejecutando el código, no leyéndolo: el WSDL inválido lo encontró <code>zeep</code>, y el marcador duplicado lo encontró el validador de XML. La responsabilidad de comprender, probar, validar y justificar cada decisión permaneció en el estudiante; las 18 pruebas automatizadas y la evidencia de PostgreSQL son la forma de demostrarlo.</p>
+    </aside>
 
     <footer class="report-footer">
       <span>Actividad basada en la consigna del curso</span>
-      <a href="../../enunciados/Ejercicio-03.pdf">Consultar enunciado ↗</a>
+      <a href="../../enunciados/Ejercicio-03.pdf">Consultar documento original ↗</a>
     </footer>
   </main>
 </body>
