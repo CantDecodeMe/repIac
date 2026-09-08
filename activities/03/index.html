@@ -102,7 +102,8 @@
         <li><a href="#s15">15 · Decisiones y trade-offs</a></li>
         <li><a href="#s16">16 · Problemas y soluciones</a></li>
         <li><a href="#s17">17 · Métricas · <b>Tarea 5</b></a></li>
-        <li><a href="#s18">18 · Despliegue, IA y conclusiones</a></li>
+        <li><a href="#s18">18 · Despliegue y descargas</a></li>
+        <li><a href="#s19">19 · Uso de IA y prompts</a></li>
       </ul>
     </header>
 
@@ -755,7 +756,9 @@ registro  = cliente.service.RegistrarClasificacion(
                24 | Test unitario     | SaaS   | curl           | 978-8441532109
                25 | Caballería        | FaaS   | curl           | 978-8420412146
                27 | Flecha del tiempo | PaaS   | python-zeep    | 978-6077473662
-(14 rows)
+               29 | Lo esencial       | PaaS   | java-swing     | 978-8478887213
+               30 | Clara             | SaaS   | java-swing     | 978-8401321359
+(16 rows)
 
 $ ... -c "select tipo_cliente, identificador, peticiones_atendidas
           from soap.clientes_servidos;"
@@ -764,13 +767,16 @@ $ ... -c "select tipo_cliente, identificador, peticiones_atendidas
 --------------+---------------------------------+----------------------
  curl         | pruebas.plan@maxthecoder.online |                   18
  curl         | clasificador                    |                    3
- java-swing   | clasificador                    |                    2
+ java-swing   | max.rubio@maxthecoder.online    |                   12
+ java-swing   | clasificador                    |                    5
  otro         | clasificador                    |                    6
  python-zeep  | interop.zeep@maxthecoder.online |                    4</code></pre>
 
         <p><code>clientes_servidos</code> distingue correctamente los tres tipos de cliente que consumieron el servicio: el arnés de pruebas (<code>curl</code>), la aplicación de escritorio (<code>java-swing</code>) y el cliente generado desde el WSDL (<code>python-zeep</code>). Las clasificaciones 15 y 27 las registró el cliente interoperable — otra imagen, otro lenguaje, sin conocer la implementación; la 27 llegó además por el endpoint público, resolviendo la dirección desde el propio WSDL descargado.</p>
 
-        <p>Los huecos en la numeración (14, 16, 21, 26) no son un error: son las transacciones que <strong>se revirtieron</strong>. Cada intento duplicado de la prueba N01 consume un valor de la secuencia antes de que el <code>UNIQUE</code> lo rechace y el <code>ROLLBACK</code> deshaga la inserción. Que la secuencia no retroceda es el comportamiento correcto de PostgreSQL —las secuencias son deliberadamente no transaccionales para no serializar a los escritores— y aquí sirve de evidencia adicional: el rollback ocurrió de verdad.</p>
+        <p>Los folios <strong>29 y 30</strong> son la prueba que cierra el criterio «las aplicaciones de escritorio consumen el servicio SOAP»: los registró la <strong>ventana Swing desde una laptop Linux</strong>, a través de internet y el túnel de Cloudflare, en una sesión real de clasificación (capturas en la sección 11). La fila <code>java-swing · max.rubio@maxthecoder.online · 12</code> cuenta esas peticiones; la fila <code>java-swing · clasificador · 5</code> son las verificaciones en modo consola del mismo binario.</p>
+
+        <p>Los huecos en la numeración (14, 16, 21, 26, 28) no son un error: son las transacciones que <strong>se revirtieron</strong>. Cada intento de clasificación duplicada —la prueba N01, la repetición del cliente <code>zeep</code>, el 409 provocado a mano desde la ventana— consume un valor de la secuencia antes de que el <code>UNIQUE</code> lo rechace y el <code>ROLLBACK</code> deshaga la inserción. Que la secuencia no retroceda es el comportamiento correcto de PostgreSQL —las secuencias son deliberadamente no transaccionales para no serializar a los escritores— y aquí sirve de evidencia adicional: el rollback ocurrió de verdad.</p>
 
         <h3 style="margin-top:22px;font-size:1rem;font-weight:750;">La evidencia del mínimo privilegio es lo que <em>falla</em></h3>
         <p>Un permiso que funciona no demuestra nada; lo que demuestra el mínimo privilegio es lo que el rol <strong>no</strong> puede hacer:</p>
@@ -871,6 +877,8 @@ $ psql -U soap_svc -d libreria -c "select count(*) from public.conceptos;"
           <li><span>8</span><p><strong><code>docker logs</code> devolvía una configuración de hace tres semanas.</strong> Al comprobar si el hostname ya estaba corregido, <code>docker logs … | tail -1</code> seguía mostrando la versión 22 mientras <code>docker logs --tail 4</code> mostraba la 26. <em>Causa:</em> sin <code>--tail</code>, Docker recorre los archivos de log ya rotados en un orden que no es cronológico, así que la última línea que emite puede ser antiquísima. Ordenar por marca de tiempo tampoco arreglaba nada, porque las líneas nuevas ni siquiera aparecían en la salida. <em>Solución:</em> pedir <code>--tail</code> siempre, con un comentario explicando por qué ese argumento aparentemente redundante no se puede quitar.</p></li>
 
           <li><span>9</span><p><strong>Cloudflare bloqueaba el arnés de pruebas con 403.</strong> Los 18 casos fallaban contra el endpoint público mientras el mismo sobre pasaba con <code>curl</code>. La diferencia era el <code>User-Agent</code>: <code>Python-urllib/3.12</code> es una firma de bot conocida. <em>Solución:</em> identificarse con un nombre de producto, que es lo que hacen <code>zeep</code> y el cliente Java —ninguno fue bloqueado—. De rebote apareció un defecto propio del arnés: reportaba <code>HTTP 403 OK</code> y reventaba con un <code>ParseError</code> crudo al recibir HTML. Se corrigió para que informe el estado tal cual y se detenga con un mensaje útil; una herramienta de pruebas que suaviza lo que observó es peor que no tenerla.</p></li>
+
+          <li><span>10</span><p><strong>El panel «Resultado» de la GUI no se limpiaba entre operaciones.</strong> Durante las pruebas del cliente, un error de credenciales quedó en pantalla y siguió visible <em>después</em> de una carga de conceptos correcta —la lista se pobló, el contador verde subió a 21, pero el recuadro rojo seguía ahí—. Parecía que la autenticación aún fallaba cuando ya no. <em>Causa:</em> <code>cargarPendientes()</code> rellena la lista pero no toca el área de resultado, así que el texto de la operación anterior sobrevive. <em>Decisión:</em> se documenta en vez de recompilar el JAR ya distribuido. Es un caso de manual de estado de interfaz obsoleto, y encaja con el tema de la Tarea 2: lo que se le muestra al usuario tiene que reflejar lo que acaba de pasar, no lo de hace dos clics.</p></li>
         </ol>
       </div>
     </section>
@@ -928,6 +936,15 @@ $ psql -U soap_svc -d libreria -c "select count(*) from public.conceptos;"
 
         <p>El módulo corre en un Raspberry Pi como contenedor Docker con <code>restart: unless-stopped</code>, lo que lo hace sobrevivir a reinicios del equipo. Se publica a internet a través de un túnel de Cloudflare, que lo alcanza por el nombre del contenedor dentro de la red Docker; el puerto local solo escucha en <code>127.0.0.1</code>. Nada se instaló en el sistema anfitrión: ni Python, ni JDK, ni <code>pip</code> — todo lo que hizo falta compilar o ejecutar corrió dentro de contenedores.</p>
 
+        <p>Todo vive en un Raspberry Pi que Max administra: el monolito del Ejercicio 02, este módulo SOAP y el sitio de este reporte, cada uno en su contenedor con <code>restart: unless-stopped</code>. El enunciado pide publicar en <code>ubiquitous.udem.edu</code>; el profesor aceptó la infraestructura propia como despliegue oficial —misma decisión que el Ejercicio 02—, así que el reporte es canónico en:</p>
+
+        <div class="version-strip">
+          <span><b>Reporte</b> journal-iac.maxthecoder.online/activities/03/</span>
+          <span><b>Servicio</b> soap-ej03.maxthecoder.online</span>
+        </div>
+
+        <p>El sitio del reporte corre como un contenedor nginx que clona el repositorio del journal y lo resincroniza cada 20 minutos, así que un <code>git push</code> lo actualiza solo. Existe además un <strong>espejo en ubiquitous</strong> (<code>ubiquitous.udem.edu/~iac-615639/ejercicio03/</code>), accesible solo desde la red de la universidad, que se sincroniza con <code>scripts/publicar-ubiquitous.sh</code> cuando hay conexión a la LAN del campus.</p>
+
         <div class="version-strip">
           <span><b>Endpoint</b> soap-ej03.maxthecoder.online/soap</span>
           <span><b>Contrato</b> /wsdl</span>
@@ -936,6 +953,7 @@ $ psql -U soap_svc -d libreria -c "select count(*) from public.conceptos;"
 
         <h3 style="margin-top:24px;font-size:1rem;font-weight:750;">Descargas</h3>
         <ul class="descargas">
+          <li><a href="https://github.com/CantDecodeMe/deploy-iac-ejercicio-03">Código fuente completo (GitHub)</a><span>Servicio Flask, SQL, scripts de despliegue y ambos clientes, con <code>README.md</code> y <code>requirements.txt</code></span></li>
           <li><a href="https://soap-ej03.maxthecoder.online/wsdl">clasificador-libreria.wsdl</a><span>Contrato completo, con el XSD embebido</span></li>
           <li><a href="https://soap-ej03.maxthecoder.online/xsd">clasificador-libreria.xsd</a><span>Tipos, por separado</span></li>
           <li><a href="https://soap-ej03.maxthecoder.online/descargas/cliente-ej03.jar">cliente-ej03.jar</a><span>Cliente de escritorio · requiere JRE 17+</span></li>
@@ -960,11 +978,54 @@ $ psql -U soap_svc -d libreria -c "select count(*) from public.conceptos;"
       </div>
     </section>
 
-    <aside class="ai-note">
-      <strong>Uso responsable de IA</strong>
-      <p>Se utilizó Claude (Anthropic) como asistente durante todo el ejercicio, en sesión de terminal con acceso al Raspberry Pi. <strong>Qué se aceptó:</strong> la estructura del proyecto, el andamiaje del servicio Flask, la redacción del WSDL/XSD y el borrador de este reporte. <strong>Qué se modificó:</strong> la decisión de seguridad —la propuesta inicial contemplaba PasswordDigest con la contraseña recuperable en la base, y se cambió a PasswordText sobre TLS con PBKDF2 y anti-replay por Nonce, precisamente porque el enunciado prohíbe almacenar contraseñas reversibles—; también se descartó una capa de traducción de nombres inglés/español que solo añadía superficie de error. <strong>Qué se rechazó:</strong> tragar el error de <code>marcar_acceso()</code>, que dejaba la transacción abortada silenciosamente.</p>
-      <p>Los cuatro problemas de la sección 16 se detectaron ejecutando el código, no leyéndolo: el WSDL inválido lo encontró <code>zeep</code>, y el marcador duplicado lo encontró el validador de XML. La responsabilidad de comprender, probar, validar y justificar cada decisión permaneció en el estudiante; las 18 pruebas automatizadas y la evidencia de PostgreSQL son la forma de demostrarlo.</p>
-    </aside>
+    <section id="s19">
+      <div class="section-number">19</div>
+      <div>
+        <h2>Uso de IA y prompts</h2>
+
+        <p>Todo el ejercicio se desarrolló con <strong>Claude Code</strong> (Anthropic) en una sesión de terminal con acceso al Raspberry Pi. El asistente escribió la mayor parte del código bajo instrucciones concretas; la responsabilidad de comprender, probar, validar y corregir cada pieza permaneció en el estudiante. Estos son los prompts que marcaron el rumbo, con qué produjo la IA y qué se aceptó, modificó o rechazó.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prompt (resumido)</th><th>Qué produjo la IA</th><th>Qué se aceptó / modificó / rechazó</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>«Usando <code>Ejercicio-03.pdf</code>, monta el módulo en <code>deploy-iac/ejercicio-03/</code>, bajo un subdominio, dockerizado para sobrevivir reinicios del Pi.»</td>
+                <td>Exploró la infraestructura real (Docker, túnel Cloudflare por token, red <code>services</code>), leyó el PDF y el esquema de la BD, y propuso la estructura completa del proyecto.</td>
+                <td><strong>Aceptado:</strong> la estructura (<code>service/</code>, <code>sql/</code>, <code>clients/</code>, <code>scripts/</code>) y el enfoque de un contenedor con <code>restart: unless-stopped</code> en la red del monolito.</td>
+              </tr>
+              <tr>
+                <td>«La BD no la toques. Haz el desarrollo fiel a la BD vieja aunque el enunciado use otros nombres. Todo dockerizado; instala en el Pi solo si es imprescindible.»</td>
+                <td>Detectó que la BD real está en español (<code>libros</code>, <code>conceptos</code>) y sin tabla puente, contra lo que asume el PDF. Propuso primero una capa de traducción de nombres.</td>
+                <td><strong>Rechazado:</strong> la capa de traducción — añadía superficie de error sin valor. <strong>Aceptado:</strong> trabajar contra el esquema real y aislar todo lo nuevo en un esquema <code>soap</code> aparte, con rol de mínimo privilegio, sin un solo <code>ALTER</code> sobre <code>public</code>.</td>
+              </tr>
+              <tr>
+                <td>«Trabaja con lo que hay. WS-Security en <em>todas</em> las operaciones, no solo la sensible. El cliente Java, un JAR ejecutable que se use desde una laptop.»</td>
+                <td>Propuso el perfil <code>PasswordDigest</code> de UsernameToken, con la contraseña almacenada de forma recuperable en la BD para poder recomputar el digest.</td>
+                <td><strong>Modificado:</strong> se cambió a <code>PasswordText</code> sobre TLS con PBKDF2 salteado y anti-replay por <code>Nonce</code> + ventana de <code>Created</code>. <code>PasswordDigest</code> obliga a guardar la contraseña reversible, justo lo que el enunciado prohíbe.</td>
+              </tr>
+              <tr>
+                <td>«Implementa el servicio y los clientes; corre el plan de pruebas.»</td>
+                <td>Escribió el servicio Flask (envelope, seguridad, faults, repositorio), el cliente Java Swing, el cliente <code>zeep</code> y un arnés de 18 casos. En <code>marcar_acceso()</code> capturaba el error de PostgreSQL y seguía.</td>
+                <td><strong>Rechazado:</strong> tragar ese error — en PostgreSQL deja la transacción abortada y confunde todo lo posterior. Se dejó propagar. <strong>Aceptado:</strong> el resto, tras verificar las 18 pruebas y la persistencia en la BD.</td>
+              </tr>
+              <tr>
+                <td>«Ya tengo el cliente en mi laptop, pero da <code>Could not resolve host</code> / <code>AutenticacionFallida</code>. Ayúdame a probarlo.»</td>
+                <td>Leyó la configuración de ingress del túnel y encontró que el hostname se había dado de alta como <code>soap-ej3</code> (sin el cero). Después, con los logs del servicio, distinguió que la GUI mandaba una contraseña mal tecleada, no un fallo de despliegue.</td>
+                <td><strong>Aceptado:</strong> el diagnóstico. El estudiante corrigió el hostname en el dashboard y copió la contraseña en vez de teclearla. La IA añadió <code>verificar-publico.sh</code> para que un typo así se detecte solo la próxima vez.</td>
+              </tr>
+              <tr>
+                <td>«Dime qué falta para completar la entrega.»</td>
+                <td>Auditó el reporte contra la estructura de 18 secciones y los 5 criterios de las tareas; encontró datos de PostgreSQL desactualizados, el código del servicio sin enlazar en descargas y esta misma sección sin registro de prompts.</td>
+                <td><strong>Aceptado:</strong> refrescar la evidencia con la sesión GUI real, enlazar el repo de código y escribir este registro. <strong>Decisión propia:</strong> mantener el espejo en ubiquitous además del dominio propio.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="margin-top:16px;">El patrón que más valor dio: <strong>los errores se encontraron ejecutando el código, no leyéndolo</strong>. El WSDL inválido lo detectó <code>zeep</code> al parsearlo; el <code>User-Agent</code> bloqueado por Cloudflare, el arnés al fallar contra el endpoint público; la contraseña mal tecleada, los logs del servicio. Cada uno está en la sección 16. Las 18 pruebas automatizadas y las evidencias de PostgreSQL son la forma de demostrar que lo entregado funciona y que el estudiante entiende por qué.</p>
+      </div>
+    </section>
 
     <footer class="report-footer">
       <span>Actividad basada en la consigna del curso</span>
