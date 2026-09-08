@@ -1,0 +1,3 @@
+probe de sincronizacion
+generado: 2026-09-08T14:37:29Z
+si ves esto por HTTP en ubiquitous, el cron trajo el commit y republico
