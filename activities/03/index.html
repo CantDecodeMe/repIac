@@ -534,6 +534,19 @@
 
         <p>La distinción entre <code>soap:Client</code> y <code>soap:Server</code> tampoco es decorativa: el cliente Java muestra un diálogo de advertencia y deja el formulario editable cuando la culpa es del cliente, y un diálogo de error cuando el problema es del servidor. La acción que se espera de la persona es distinta en cada caso — corregir algo, o volver a intentar más tarde.</p>
 
+        <p>El caso que pide el enunciado —provocar una clasificación duplicada— se ve así en la aplicación: el servicio responde un <code>soap:Fault</code> con <code>ClasificacionDuplicada</code> / 409 y la GUI lo traduce a una frase accionable, sin exponer nada técnico.</p>
+
+        <div class="galeria">
+          <figure>
+            <img src="fotos/gui-06-fault-409.png" alt="Diálogo de la aplicación diciendo: Ya clasificaste ese concepto antes. Elige otro de la lista de pendientes" loading="lazy">
+            <figcaption>El SOAP Fault 409 traducido: «Ya clasificaste ese concepto antes». Ni <code>409</code>, ni <code>ClasificacionDuplicada</code>, ni <code>soap:Fault</code> — eso queda para la pestaña de evidencia.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-07-evidencia-409.png" alt="Pestaña de evidencia mostrando el sobre SOAP de la petición, con la contraseña censurada" loading="lazy">
+            <figcaption>La pestaña <strong>Evidencia</strong> guarda el sobre exacto que se envió y el que se recibió. La contraseña aparece como <code>********</code>: la censura el propio cliente antes de mostrarla.</figcaption>
+          </figure>
+        </div>
+
         <p>Nunca se filtra stack trace, ruta interna, consulta SQL ni contraseña. Se comprobó revisando los sobres de las diez pruebas negativas: ninguna respuesta contiene la palabra <code>psycopg2</code>, un SQLSTATE ni una ruta del contenedor.</p>
       </div>
     </section>
