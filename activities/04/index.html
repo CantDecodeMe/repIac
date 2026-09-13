@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 04 · Cliente Electron sobre un tercer microservicio</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    /* Complementos propios de este reporte. Todo lo demás viene de report.css. */
+    .diagrama { margin: 24px 0 10px; }
+    .diagrama svg { width: 100%; height: auto; display: block; }
+
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision dl { margin: 0; font-size: 0.78rem; }
+    .decision dt {
+      float: left; clear: left; width: 92px; color: var(--pink);
+      font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; padding-top: 3px;
+    }
+    .decision dd { margin: 0 0 7px 100px; color: var(--muted); }
+
+    .descargas { margin: 18px 0 0; padding: 0; list-style: none; font-size: 0.78rem; }
+    .descargas li { padding: 9px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; }
+    .descargas li:last-child { border-bottom: 0; }
+    .descargas a { color: var(--accent-dark); font-weight: 700; text-decoration: none; }
+    .descargas span { color: var(--muted); font-size: 0.72rem; text-align: right; }
+
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+
+    .fail { color: var(--pink); font-weight: 800; }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+
+    .galeria { margin: 20px 0 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .galeria figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--soft); }
+    .galeria img { width: 100%; height: auto; display: block; }
+    .galeria figcaption { padding: 10px 14px; font-size: 0.7rem; color: var(--muted); line-height: 1.45; }
+
+    .metricas { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metricas div { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+    .metricas b { display: block; font-family: "Space Grotesk", sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--accent-dark); line-height: 1.1; }
+    .metricas small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.62rem; line-height: 1.35; }
+
+    @media (max-width: 650px) {
+      .galeria { grid-template-columns: 1fr; }
+      .metricas { grid-template-columns: repeat(2, 1fr); }
+      .indice { columns: 1; }
+      .decision dt { float: none; width: auto; }
+      .decision dd { margin-left: 0; }
+    }
+    @media print {
+      .metricas b { font-size: 15pt; }
+      .indice { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 04</p>
+      <h1>Un cliente de escritorio<br>para el <em>tercer microservicio.</em></h1>
+      <p class="report-lead">Una aplicación Electron con cards, paginación y configuración persistente que consume — exclusivamente por XML — un microservicio REST nuevo, <code>libros-ms</code>, construido sobre la misma base PostgreSQL que ya usan el monolito del Ejercicio 02 y el módulo SOAP del Ejercicio 03.</p>
+      <div class="header-tags">
+        <span>Electron</span><span>Flask · psycopg2</span><span>XML sin librerías</span><span>node --test</span><span>electron-packager</span><span>Docker</span><span>17/17 pruebas</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y una desviación honesta</a></li>
+        <li><a href="#s2">02 · Arquitectura</a></li>
+        <li><a href="#s3">03 · Cómo se relaciona con ej02 y ej03</a></li>
+        <li><a href="#s4">04 · El microservicio libros-ms</a></li>
+        <li><a href="#s5">05 · La aplicación Electron</a></li>
+        <li><a href="#s6">06 · Decisiones de ingeniería</a></li>
+        <li><a href="#s7">07 · Problemas reales y cómo se resolvieron</a></li>
+        <li><a href="#s8">08 · Pruebas y verificación</a></li>
+        <li><a href="#s9">09 · Empaquetado y descargas</a></li>
+        <li><a href="#s10">10 · Conclusiones</a></li>
+        <li><a href="#s11">11 · Uso de IA y prompts</a></li>
+      </ul>
+    </header>
+
+    <!-- ============================================================ -->
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y una desviación honesta</h2>
+        <p>El enunciado (<a href="../../enunciados/Ejercicio-04.md">reproducido íntegro aquí</a>) pide tres cosas: una aplicación de escritorio Electron con una GUI profesional que muestre el catálogo en <em>cards</em> — portada, autores, ISBN, stock, año, género y precio — con paginación y carga por petición; que consuma <strong>exclusivamente XML</strong> desde un microservicio, con URL y endpoint configurables y persistidos en <code>localStorage</code>; y un <code>README.md</code> con los pasos para ejecutarla en Windows 11.</p>
+
+        <div class="aviso">
+          <strong>Una desviación honesta respecto al enunciado.</strong> El PDF de la consigna apunta a un microservicio de ejemplo del curso en <code>http://34.51.99.221:5001/books</code>. En vez de depender de ese servidor genérico, se construyó <strong>un tercer microservicio propio</strong>, <code>libros-ms</code>, siguiendo exactamente el mismo patrón de infraestructura que ya se estableció en los Ejercicios 02 y 03: mismo Postgres compartido, mismo Raspberry Pi, mismo túnel de Cloudflare, mismo estilo de rol de mínimo privilegio. La app Electron apunta por defecto a <code>libros.maxthecoder.online</code> — pero el requisito literal («la URL y el endpoint deben ser configurables») se cumple al pie de la letra, así que también funciona contra el servidor del curso o cualquier otro que hable el mismo contrato XML, sin tocar una línea de código.</p>
+        </div>
+
+        <p><strong>Dentro del alcance:</strong> el microservicio <code>libros-ms</code> (Flask, solo lectura); la aplicación Electron completa con IPC, módulos puros probados y empaquetado real; la migración aditiva necesaria para soportar el filtro <code>format</code> del contrato.</p>
+        <p><strong>Fuera del alcance:</strong> escritura sobre el catálogo (ni desde el microservicio ni desde la app); tocar el código o el esquema funcional de los Ejercicios 02 o 03.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <p>El flujo completo: la app Electron corre en la laptop del usuario (Windows o Linux); su proceso <em>main</em> hace la petición HTTP al microservicio a través del túnel de Cloudflare — nunca el renderer, para no depender de CORS. <code>libros-ms</code> consulta la misma base PostgreSQL que ya comparten el monolito y el módulo SOAP, y re-sirve las portadas y el cliente empaquetado.</p>
+
+        <figure class="diagrama">
+          <svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Diagrama: la app Electron en la laptop del usuario hace fetch desde su proceso main a traves del tunel de Cloudflare hacia el contenedor libros-ms; libros-ms lee con el rol libros_ms_svc la base PostgreSQL compartida, la misma que usan el monolito Node y el modulo SOAP; el renderer de Electron nunca toca la red directamente.">
+            <defs>
+              <marker id="f4" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                <path d="M0,0 L9,4.5 L0,9 z" fill="#8b5cf6"/>
+              </marker>
+              <marker id="fr4" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                <path d="M0,0 L9,4.5 L0,9 z" fill="#ec4899"/>
+              </marker>
+              <style>
+                .caja4 { fill:#f2f0fb; stroke:#c9c1ef; stroke-width:1.2; rx:10; }
+                .frontera4 { fill:none; stroke:#c9c1ef; stroke-width:1.3; stroke-dasharray:6 5; rx:14; }
+                .tit4 { font:700 12px Inter,sans-serif; fill:#1e1b3a; }
+                .sub4 { font:400 10px Inter,sans-serif; fill:#6b6690; }
+                .lbl4 { font:800 8.5px Inter,sans-serif; fill:#6b6690; letter-spacing:.06em; }
+                .flecha4 { font:600 9px Inter,sans-serif; fill:#6b6690; }
+                .conec4 { stroke:#8b5cf6; stroke-width:1.6; fill:none; }
+                .conec4r { stroke:#ec4899; stroke-width:1.6; fill:none; }
+              </style>
+            </defs>
+
+            <!-- Frontera: laptop del usuario -->
+            <rect class="frontera4" x="14" y="46" width="240" height="200"/>
+            <text class="lbl4" x="24" y="38">LAPTOP DEL USUARIO (WINDOWS / LINUX)</text>
+
+            <rect class="caja4" x="30" y="66" width="208" height="76"/>
+            <text class="tit4" x="46" y="92">Renderer (Chromium)</text>
+            <text class="sub4" x="46" y="110">Cards · paginación · localStorage</text>
+            <text class="sub4" x="46" y="126">sin nodeIntegration</text>
+
+            <rect class="caja4" x="30" y="156" width="208" height="70"/>
+            <text class="tit4" x="46" y="180">Proceso main (Node)</text>
+            <text class="sub4" x="46" y="198">fetch() vía IPC · parseXml propio</text>
+            <text class="sub4" x="46" y="214">evita CORS en el renderer</text>
+
+            <!-- Cloudflare -->
+            <rect class="caja4" x="320" y="52" width="196" height="52"/>
+            <text class="tit4" x="336" y="76">Túnel Cloudflare</text>
+            <text class="sub4" x="336" y="93">TLS · libros.maxthecoder.online</text>
+
+            <!-- Frontera: libros-ms -->
+            <rect class="frontera4" x="304" y="128" width="228" height="150"/>
+            <text class="lbl4" x="314" y="120">MICROSERVICIO (CONTENEDOR libros-ms)</text>
+
+            <rect class="caja4" x="320" y="146" width="196" height="116"/>
+            <text class="tit4" x="336" y="170">Flask · gunicorn 2×4</text>
+            <text class="sub4" x="336" y="190">xml_util.py — ElementTree</text>
+            <text class="sub4" x="336" y="206">db/repositorio.py — el único SQL</text>
+            <text class="sub4" x="336" y="222">/books /books/&lt;isbn&gt;</text>
+            <text class="sub4" x="336" y="238">/uploads · /download-client</text>
+
+            <!-- Frontera: PostgreSQL -->
+            <rect class="frontera4" x="594" y="128" width="292" height="150"/>
+            <text class="lbl4" x="604" y="120">POSTGRESQL · BASE «libreria» (COMPARTIDA)</text>
+
+            <rect class="caja4" x="612" y="146" width="258" height="116"/>
+            <text class="tit4" x="628" y="170">esquema public</text>
+            <text class="sub4" x="628" y="190">libros (+ formato) · categorias</text>
+            <text class="sub4" x="628" y="206">autores · editoriales · conceptos</text>
+            <text class="sub4" x="628" y="222">rol libros_ms_svc — solo SELECT</text>
+            <text class="sub4" x="628" y="238">usuarios · pedidos (sin acceso)</text>
+
+            <!-- Frontera: otros servicios que ya comparten esta BD -->
+            <rect class="frontera4" x="304" y="316" width="582" height="90"/>
+            <text class="lbl4" x="314" y="308">MISMA BASE, SIN CAMBIOS — EJERCICIOS 02 Y 03</text>
+
+            <rect class="caja4" x="320" y="334" width="264" height="56"/>
+            <text class="tit4" x="336" y="358">libreria-app-1 (Ej. 02)</text>
+            <text class="sub4" x="336" y="374">Node.js · Express · rol dueño</text>
+
+            <rect class="caja4" x="606" y="334" width="264" height="56"/>
+            <text class="tit4" x="622" y="358">ej03-soap (Ej. 03)</text>
+            <text class="sub4" x="622" y="374">Flask SOAP · rol soap_svc</text>
+
+            <!-- Conexiones -->
+            <path class="conec4" d="M134 142 V156" marker-end="url(#f4)"/>
+            <path class="conec4" d="M238 191 H320" marker-end="url(#f4)"/>
+            <text class="flecha4" x="242" y="183">HTTPS · GET /books</text>
+
+            <path class="conec4" d="M418 104 V146" marker-end="url(#f4)"/>
+
+            <path class="conec4r" d="M516 204 H612" marker-end="url(#fr4)"/>
+            <text class="flecha4" x="520" y="197">SELECT · solo lectura</text>
+
+            <path class="conec4" d="M452 390 V300 H418 V278" marker-end="url(#f4)"/>
+            <path class="conec4" d="M738 390 V300 H738 V278" marker-end="url(#f4)"/>
+
+            <!-- Leyenda -->
+            <line class="conec4" x1="30" y1="424" x2="70" y2="424"/>
+            <text class="sub4" x="78" y="428">HTTPS / lectura-escritura de cada dueño</text>
+            <line class="conec4r" x1="330" y1="424" x2="370" y2="424"/>
+            <text class="sub4" x="378" y="428">Solo lectura (mínimo privilegio)</text>
+          </svg>
+          <figcaption class="caption">El renderer de Electron nunca abre una conexión de red por su cuenta: todo pasa por el proceso <em>main</em> vía IPC. <code>libros-ms</code> es un contenedor más sobre la misma base que ya usan el monolito y el módulo SOAP, cada uno con su propio rol de PostgreSQL.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s3">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Cómo se relaciona con ej02 y ej03</h2>
+        <p>Los tres ejercicios forman ya un pequeño ecosistema alrededor de un solo catálogo: un dueño (el monolito) y dos consumidores de solo lectura con protocolos distintos.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Aspecto</th><th>Ej. 02 (monolito)</th><th>Ej. 03 (SOAP)</th><th>Ej. 04 (libros-ms + Electron)</th></tr></thead>
+            <tbody>
+              <tr><td>Protocolo del servicio</td><td>HTML sobre HTTP</td><td>SOAP 1.1 sobre HTTPS</td><td>REST/XML sobre HTTPS</td></tr>
+              <tr><td>Cliente</td><td>Navegador</td><td>Java Swing · zeep</td><td>Electron (Windows / Linux)</td></tr>
+              <tr><td>Usuario de BD</td><td><code>libreria</code> — dueño</td><td><code>soap_svc</code> — mínimo privilegio</td><td><code>libros_ms_svc</code> — mínimo privilegio</td></tr>
+              <tr><td>Puerto local</td><td>3000</td><td>8003</td><td>5001</td></tr>
+              <tr><td>Cambios al esquema</td><td>—</td><td>ninguno</td><td>+1 columna aditiva (<code>formato</code>)</td></tr>
+              <tr><td>Despliegue</td><td><code>~/libreria/</code></td><td><code>deploy-iac/ejercicio-03/</code></td><td><code>deploy-iac/ejercicio-04/</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>La diferencia real de este ejercicio no es el protocolo — ya se había hecho HTML y SOAP — sino que es <strong>el primer cliente de escritorio nativo</strong> del portafolio: no corre en un navegador ni depende de un JRE, sino que se empaqueta como binario independiente para dos sistemas operativos.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>El microservicio libros-ms</h2>
+        <p>Flask + gunicorn (2 workers × 4 hilos), el mismo patrón de conexión a PostgreSQL que ya usa ej03 (<code>psycopg2.pool.SimpleConnectionPool</code>, transacciones con commit/rollback automático, <code>/healthz</code> que hace ping real a la base). Es de solo lectura: ni una ruta escribe en el catálogo.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ruta</th><th>Qué hace</th></tr></thead>
+            <tbody>
+              <tr><td><code>GET /books</code></td><td>Catálogo con filtros <code>format</code>, <code>isbn</code>, <code>title</code>, <code>year</code>, <code>min_price</code>, <code>max_price</code>, paginación <code>page</code>/<code>per_page</code></td></tr>
+              <tr><td><code>GET /books/&lt;isbn&gt;</code></td><td>Un solo libro con el mismo contrato</td></tr>
+              <tr><td><code>GET /uploads/&lt;archivo&gt;</code></td><td>Portadas reales del catálogo (montadas de solo lectura desde el monolito)</td></tr>
+              <tr><td><code>GET /download-client</code></td><td>Página con los dos instaladores (Windows / Linux)</td></tr>
+              <tr><td><code>GET /healthz</code>, <code>/openapi.json</code></td><td>Salud y contrato de la API</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Cada <code>&lt;book&gt;</code> del XML trae <code>isbn</code>, <code>title</code>, <code>genero</code> (de <code>categorias.nombre</code>), <code>formato</code>, <code>editorial</code>, <code>year</code> (de <code>fecha_publicacion</code>), <code>portada</code> (URL absoluta re-servida por el propio microservicio), <code>price</code>, <code>stock</code>, la lista de <code>&lt;authors&gt;</code> y la lista de <code>&lt;concepts&gt;</code> (término + definición). Se serializa con <code>xml.etree.ElementTree</code>, nunca con f-strings, para que el escape de <code>&amp;</code>, <code>&lt;</code> y <code>&gt;</code> en títulos o definiciones lo haga la librería estándar.</p>
+
+        <div class="aviso">
+          <strong>La migración aditiva de <code>formato</code>.</strong> El contrato pide un filtro por formato que no existía en el esquema del Ejercicio 02. Se agregó con <code>ALTER TABLE libros ADD COLUMN formato text NOT NULL DEFAULT 'Fisico'</code>, aplicada en caliente contra <code>libreria-db-1</code>. Antes de aplicarla se verificó — leyendo el código real de ej02 y ej03, no asumiendo — que ninguno de los dos usa <code>INSERT</code>/<code>UPDATE</code> posicional sobre <code>libros</code>, que el único <code>SELECT *</code> del monolito alimenta una plantilla EJS que lee campos por nombre, y que no existe ningún validador de esquema que rechace un campo extra. La migración no tocó una línea de código de ninguno de los dos ejercicios anteriores.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s5">
+      <div class="section-number">05</div>
+      <div>
+        <h2>La aplicación Electron</h2>
+        <p>Cards con portada (con <em>fallback</em> a un SVG local si la imagen no carga), autores, ISBN, stock, año, género y precio; paginación de 8 en 8 con una petición HTTP nueva por página, nunca todo el catálogo de una vez. La URL del servidor y el endpoint son configurables desde un panel en la propia interfaz y se persisten en <code>localStorage</code>, con <code>https://libros.maxthecoder.online</code> como valor por defecto.</p>
+
+        <p>La arquitectura interna separa tres capas: <strong>módulos puros</strong> (<code>src/shared/parseXml.js</code>, <code>paginate.js</code>, <code>cover.js</code>) sin ninguna dependencia de Electron, probados con <code>node --test</code> corriendo plano; el <strong>proceso main</strong>, que hace el <code>fetch()</code> real vía un handler de IPC (<code>libros:fetch-page</code>) para que el renderer nunca abra una conexión de red directamente; y el <strong>preload</strong>, que expone esos módulos puros y el fetch al renderer con <code>contextBridge</code>, explícito y de solo lectura.</p>
+
+        <div class="galeria">
+          <figure>
+            <img src="fotos/gui-01-catalogo-portadas-reales.png" alt="Catálogo de la librería en la app Electron mostrando cinco cards con portadas reales, autor, ISBN, año, género, stock y precio" loading="lazy">
+            <figcaption>Catálogo real servido por <code>libros.maxthecoder.online</code>: portadas, metadatos y precio en cada card, cargados por el proceso main vía IPC.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/gui-02-paginacion.png" alt="Segunda página del catálogo con dos libros restantes y el botón Siguiente deshabilitado" loading="lazy">
+            <figcaption>Página 2 de 2: nueva petición HTTP al hacer clic en «Siguiente», no paginación en memoria. El botón se deshabilita al llegar al final.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s6" class="page-break-before">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+
+        <div class="decision">
+          <h3>Servidor propio en vez del servidor de ejemplo del curso</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>El enunciado apunta a un microservicio genérico (<code>34.51.99.221:5001</code>) que no es propio ni forma parte del portafolio.</dd>
+            <dt>Decisión</dt><dd>Construir <code>libros-ms</code> con el mismo patrón de infraestructura de ej02/ej03 y dejarlo como valor por defecto configurable.</dd>
+            <dt>Justificación</dt><dd>El requisito real y verificable no es «usa ese servidor», sino «la URL y el endpoint deben ser configurables» — y eso se cumple exactamente igual apuntando a cualquier servidor que hable XML con el mismo contrato.</dd>
+            <dt>Ventajas</dt><dd>Un tercer microservicio más en el portafolio, con su propio rol de mínimo privilegio y su propio despliegue documentado; la app sigue funcionando contra el servidor del curso sin cambiar código.</dd>
+            <dt>Limitaciones</dt><dd>El contrato XML de <code>libros-ms</code> es una interpretación propia del enunciado, no una copia del servidor de ejemplo — no se pudo comparar campo a campo porque el servidor de ejemplo no fue alcanzable desde este entorno.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>El fetch corre en el proceso main, no en el renderer</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Consumir un servidor HTTPS externo sin pelear con CORS ni exponer la red al contenido de la página.</dd>
+            <dt>Decisión</dt><dd>Un único handler de IPC (<code>ipcMain.handle('libros:fetch-page', ...)</code>) hace el <code>fetch()</code>; el renderer solo pide y recibe texto XML ya descargado.</dd>
+            <dt>Justificación</dt><dd>El proceso main de Electron no tiene política de mismo origen; el renderer, si hiciera el fetch él mismo, quedaría sujeto a CORS del lado del servidor — algo que no se controla desde el cliente.</dd>
+            <dt>Ventajas</dt><dd>Funciona contra cualquier servidor sin configurar cabeceras CORS en <code>libros-ms</code>. Un timeout con <code>AbortController</code> protege contra un servidor colgado.</dd>
+            <dt>Limitaciones</dt><dd>El preload no puede correr con <code>sandbox: true</code> (ver sección 07) porque necesita <code>require()</code> los módulos puros locales — un trade-off documentado, no un descuido.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Parser XML propio en vez de una librería</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Los módulos puros deben probarse con <code>node --test</code> sin instalar nada ni depender de un DOMParser de navegador.</dd>
+            <dt>Decisión</dt><dd>Un parser minimalista en <code>src/shared/parseXml.js</code>, con una sola expresión regular para tags y otra para atributos.</dd>
+            <dt>Justificación</dt><dd>El contrato que produce <code>libros-ms</code> es simple y conocido (sin namespaces, sin CDATA, generado con <code>xml.etree.ElementTree</code>): no justifica traer una dependencia completa de parsing XML para un caso de uso tan acotado.</dd>
+            <dt>Ventajas</dt><dd>Cero dependencias de producción para la lógica más crítica de la app; 17 pruebas corren en menos de 300&nbsp;ms.</dd>
+            <dt>Limitaciones</dt><dd>No es un parser XML general — no soporta namespaces ni CDATA. Un bug real de esta limitación se encontró y se corrigió (sección 07).</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s7">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Problemas reales y cómo se resolvieron</h2>
+        <p>Todos estos bugs aparecieron corriendo la aplicación de verdad — con Electron real bajo Xvfb en el propio Raspberry Pi, no solo leyendo el código — que es exactamente el patrón que ya había dado resultado en el Ejercicio 03.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Cómo se detectó</th><th>Causa</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>UndefinedTable</code> en <code>/books</code></td>
+                <td><code>curl</code> directo al servicio recién desplegado</td>
+                <td>El <code>JOIN</code> usaba el alias <code>c</code> pero el <code>SELECT</code> referenciaba <code>cat</code></td>
+                <td>Alias consistente en las dos consultas de <code>repositorio.py</code></td>
+              </tr>
+              <tr>
+                <td>Panel de configuración visible siempre</td>
+                <td>Captura de pantalla de la app real</td>
+                <td>Una regla de autor con <code>display: flex</code> gana sobre el <code>display: none</code> del user-agent para <code>[hidden]</code></td>
+                <td>Regla explícita <code>.panel-config[hidden] { display: none; }</code></td>
+              </tr>
+              <tr>
+                <td><code>module not found: ../shared/parseXml</code> en el preload</td>
+                <td>Log de consola del proceso main al cargar la ventana</td>
+                <td>El <code>sandbox: true</code> de Electron restringe el preload a un <code>require()</code> que solo resuelve módulos nativos de Node, no archivos del proyecto</td>
+                <td><code>sandbox: false</code> solo para el preload; el renderer sigue sin <code>nodeIntegration</code> porque la app solo carga su propio <code>index.html</code>, nunca contenido remoto</td>
+              </tr>
+              <tr>
+                <td><code>XML mal formado: se esperaba cierre de "year", vino "book"</code></td>
+                <td>El catálogo real se veía vacío en la GUI con un libro sin fecha de publicación</td>
+                <td><code>xml.etree.ElementTree</code> serializa un elemento con texto vacío como <em>self-closing</em> (<code>&lt;year /&gt;</code>); el grupo de atributos del parser propio, mal acotado, se comía la barra antes de que el grupo final la viera</td>
+                <td>Regex de atributos reescrita para reconocer solo pares <code>nombre="valor"</code> — y una prueba de regresión con exactamente ese caso</td>
+              </tr>
+              <tr>
+                <td><code>electron-packager</code> exige Wine para el target Windows</td>
+                <td><code>electron-packager --platform=win32</code> falla con <code>Wrapper command 'wine64' not found</code></td>
+                <td>El paquete infiere <code>appVersion</code> del campo <code>version</code> de <code>package.json</code>; cualquier valor (inferido o explícito) obliga a correr <code>rcedit</code> — un editor de recursos de Windows — vía Wine</td>
+                <td>Se quitó <code>version</code> de <code>package.json</code> (la app es privada, no se publica), lo que evita la inferencia y el <code>.exe</code> se genera sin Wine ni una máquina Windows</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s8" class="page-break-before">
+      <div class="section-number">08</div>
+      <div>
+        <h2>Pruebas y verificación</h2>
+
+        <div class="metricas">
+          <div><b>17/17</b><small>pruebas de <code>node --test</code> sobre los módulos puros</small></div>
+          <div><b>0</b><small>dependencias de producción en <code>src/shared/</code></small></div>
+          <div><b>151&nbsp;MB</b><small>.zip de Windows, descargado íntegro en ~20&nbsp;s por el túnel</small></div>
+          <div><b>118&nbsp;MB</b><small>.zip de Linux, con <code>run.sh</code> incluido</small></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Verificación</th><th>Resultado</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td><code>curl .../healthz</code></td><td><code>{"status":"ok","db":"ok"}</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td><code>curl .../books</code></td><td>XML válido, 10 libros, filtros y paginación correctos</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td><code>curl -I .../download-client</code></td><td><code>200</code>, ambos botones enlazan a un <code>.zip</code> real</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td><code>node --test test/</code></td><td>17 casos, incluida la regresión del tag <em>self-closing</em></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td><code>npm run check:env</code></td><td>Node, dependencias y archivos de entrada verificados</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>App real (Electron + Xvfb) contra el servidor público</td><td>Cards con portadas reales, paginación por petición, error controlado si el servidor no responde</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td><code>.exe</code> de Windows</td><td><code>PE32+ executable, x86-64</code> — verificado con <code>file</code></td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>Binario de Linux</td><td><code>ELF 64-bit LSB, x86-64</code> — no ejecuta en el Pi (ARM64) por diseño; se valida en la laptop del usuario</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>Descarga completa del <code>.zip</code> vía el túnel + <code>unzip -t</code></td><td>Sin errores de integridad</td><td><span class="ok">Pasa</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="result-callout"><strong>Resultado final</strong><span>9 de 9 verificaciones correctas</span></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s9">
+      <div class="section-number">09</div>
+      <div>
+        <h2>Empaquetado y descargas</h2>
+        <p><code>electron-packager</code> no compila nada: baja el binario prebuilt de Electron para cada plataforma, así que ambos instaladores se generan en el propio Raspberry Pi (ARM64/Linux) sin Wine y sin una máquina Windows — ver la decisión de la sección 06 sobre por qué se quitó <code>version</code> de <code>package.json</code> para lograrlo.</p>
+
+        <ul class="descargas">
+          <li><a href="https://github.com/CantDecodeMe/deploy-iac-ejercicio-04">Código fuente completo (GitHub)</a><span>Microservicio Flask, app Electron, SQL, scripts de despliegue y empaquetado</span></li>
+          <li><a href="https://libros.maxthecoder.online/books">/books</a><span>Catálogo en XML, en vivo</span></li>
+          <li><a href="https://libros.maxthecoder.online/openapi.json">/openapi.json</a><span>Contrato de la API</span></li>
+          <li><a href="https://libros.maxthecoder.online/download-client">/download-client</a><span>Cliente de escritorio — Windows y Linux</span></li>
+        </ul>
+        <p class="caption" style="margin-top:12px;">Ninguna descarga incluye <code>.env</code>, contraseñas ni cadenas de conexión.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s10">
+      <div class="section-number">10</div>
+      <div>
+        <h2>Conclusiones</h2>
+        <p>El hallazgo más útil de este ejercicio no fue Electron en sí, sino <strong>cuánto de lo que Electron da «gratis» en realidad son fronteras de seguridad que hay que entender antes de desactivar</strong>: el sandbox del preload no es un capricho, y desactivarlo solo para el preload — nunca para el renderer, que sigue sin <code>nodeIntegration</code> — es un trade-off consciente, no un atajo.</p>
+
+        <p>El segundo hallazgo fue metodológico: los cinco bugs de la sección 07 aparecieron todos ejecutando la app de verdad, con una captura de pantalla real de Electron corriendo bajo Xvfb en el Pi — ninguno se habría visto solo leyendo el código. Es el mismo patrón que ya había funcionado en el Ejercicio 03, aplicado aquí a un stack completamente distinto (Electron/Node en vez de SOAP/Java).</p>
+
+        <p>Y sobre la desviación del servidor de ejemplo: adaptar el enunciado a la infraestructura propia — en vez de depender de un servidor que no se controla y que ni siquiera fue alcanzable durante el desarrollo — resultó, otra vez, en un artefacto más reutilizable: un tercer microservicio con su propio rol de base de datos, su propio despliegue documentado y su propio lugar en este portafolio.</p>
+      </div>
+    </section>
+
+    <section id="s11">
+      <div class="section-number">11</div>
+      <div>
+        <h2>Uso de IA y prompts</h2>
+
+        <p>Todo el ejercicio se desarrolló con <strong>Claude Code</strong> (Anthropic) en una sesión de terminal con acceso al Raspberry Pi. El asistente escribió la mayor parte del código y corrió las verificaciones reales (curl, <code>node --test</code>, Electron bajo Xvfb, empaquetado); la responsabilidad de decidir el rumbo, revisar y aprobar cada paso permaneció en el estudiante.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prompt (resumido)</th><th>Qué produjo la IA</th><th>Qué se aceptó / modificó / rechazó</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Plan detallado de dos repos: <code>deploy-iac-ejercicio-04</code> nuevo (microservicio + Electron) y una entrada nueva en <code>repIac</code>, siguiendo el patrón exacto de ej03.</td>
+                <td>Exploró los repos de ej02/ej03 y repIac en paralelo, encontró el esquema real de la BD y detectó que faltaba la columna <code>formato</code> que pedía el contrato.</td>
+                <td><strong>Aceptado:</strong> la estructura completa. <strong>Pregunta abierta:</strong> qué hacer con la columna faltante — se resolvió en el siguiente prompt.</td>
+              </tr>
+              <tr>
+                <td>«Me gusta agregar la columna, pero ¿esto no va a romper mis apps anteriores?»</td>
+                <td>Auditó el código real de ej02 y ej03 (no asumió) buscando <code>INSERT</code>/<code>UPDATE</code> posicional, <code>SELECT *</code> con acceso por índice y validadores de esquema.</td>
+                <td><strong>Aceptado</strong> tras la verificación explícita: la migración aditiva es segura porque ambos ejercicios usan listas de columnas explícitas.</td>
+              </tr>
+              <tr>
+                <td>Confirmación manual del hostname en el dashboard de Cloudflare (captura de pantalla).</td>
+                <td>Verificó con <code>curl</code> que <code>/healthz</code>, <code>/books</code> y <code>/download-client</code> respondían públicamente antes de continuar.</td>
+                <td><strong>Aceptado.</strong></td>
+              </tr>
+              <tr>
+                <td>«Dame los tres pasos para publicar en Cloudflare» / imagen de la consigna real (<code>4_Electron_app.md</code>), que resultó distinta del plan original en un punto importante: apuntaba a un servidor de ejemplo del curso, no a uno propio.</td>
+                <td>Intentó verificar la conectividad al servidor de ejemplo del curso antes de continuar.</td>
+                <td><strong>Corregido por el estudiante:</strong> «recuerda que modificamos la implementación para que se ajuste a nuestro entorno de trabajo, no seguimos esas instrucciones al pie de la letra» — se documentó como decisión de ingeniería explícita (sección 06) en vez de intentar depurar una conexión que nunca fue el objetivo real.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="margin-top:16px;">El patrón que más valor dio, otra vez: <strong>los errores se encontraron ejecutando la aplicación real</strong>, con Xvfb y capturas de pantalla, no leyendo el código ni confiando en que «debería funcionar». Los cinco problemas de la sección 07 se descubrieron y corrigieron así, uno detrás de otro, en la misma sesión.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+      <a href="../../enunciados/Ejercicio-04.md">Consultar enunciado ↗</a>
+    </footer>
+  </main>
+</body>
+</html>
