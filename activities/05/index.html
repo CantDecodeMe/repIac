@@ -68,7 +68,7 @@
       <h1>Un cuarto microservicio,<br>ahora para <em>autenticación.</em></h1>
       <p class="report-lead">Un microservicio Flask independiente de registro, login, logout y consulta de sesión, con contraseñas protegidas por PBKDF2 y sesiones respaldadas en PostgreSQL — sobre su propio esquema de la misma base que ya comparten los Ejercicios 02, 03 y 04, y con cada respuesta disponible en XML o JSON.</p>
       <div class="header-tags">
-        <span>Flask · Psycopg 3</span><span>PostgreSQL · esquema propio</span><span>PBKDF2-HMAC-SHA256</span><span>Sesiones en BD</span><span>XML / JSON</span><span>Docker</span><span>Mínimo privilegio</span>
+        <span>Flask · Psycopg 3</span><span>PostgreSQL · esquema propio</span><span>PBKDF2-HMAC-SHA256</span><span>Sesiones en BD</span><span>XML / JSON</span><span>Docker</span><span>Mínimo privilegio</span><span>Mailpit · SMTP</span>
       </div>
       <ul class="indice">
         <li><a href="#s1">01 · Objetivo y alcance</a></li>
@@ -322,6 +322,17 @@ $ curl -s -b cookies.txt 'localhost:5002/session?format=json'
             <dt>Limitaciones</dt><dd>PBKDF2 es más lento de forzar que un hash rápido, pero algo más rápido de calcular que <code>argon2id</code> o <code>bcrypt</code> con costo alto; no es la elección más fuerte posible, es la que ya se había justificado y auditado en este mismo portafolio.</dd>
           </dl>
         </div>
+
+        <div class="decision">
+          <h3>Correo de confirmación vía Mailpit, no un proveedor SMTP real</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Ampliación pedida después del primer despliegue: enviar un correo de confirmación cuando <code>POST /register</code> tiene éxito.</dd>
+            <dt>Decisión</dt><dd>Un servicio <code>mailpit</code> (<code>axllent/mailpit</code>) en el mismo <code>docker-compose.yml</code>, en una red Docker interna nueva (<code>correo</code>) que solo comparten <code>auth-ms</code> y <code>mailpit</code>. <code>auth-ms</code> le entrega el correo por SMTP real (<code>smtplib</code>, biblioteca estándar); la bandeja se revisa en <code>http://localhost:8025</code>, publicado solo en loopback como el resto de los puertos del proyecto.</dd>
+            <dt>Justificación</dt><dd>El proyecto no tenía ninguna infraestructura de correo previa (se verificó con <code>grep</code> en el monolito y los tres ejercicios anteriores). Un proveedor SMTP real habría exigido credenciales de terceros y arriesgado que un correo de prueba con datos falsos se marcara como spam — nada de eso aporta al objetivo del ejercicio, que es demostrar el punto de integración, no operar un remitente de producción.</dd>
+            <dt>Ventajas</dt><dd>Cero credenciales externas; el flujo SMTP es real de punta a punta (no un stub), así que valida la integración de verdad. Un fallo de envío (Mailpit caído) se aisló explícitamente: <code>POST /register</code> sigue devolviendo <code>201</code> y solo deja un <code>log.warning</code>, verificado deteniendo el contenedor <code>mailpit</code> a propósito.</dd>
+            <dt>Limitaciones</dt><dd>No hay entrega a un inbox real — si el ejercicio se convirtiera en producción, este es el único componente que habría que reemplazar (cambiar <code>SMTP_HOST</code>/<code>SMTP_PORT</code> a un proveedor real; el resto del código no cambia).</dd>
+          </dl>
+        </div>
       </div>
     </section>
 
@@ -336,6 +347,10 @@ $ curl -s -b cookies.txt 'localhost:5002/session?format=json'
           <div><b>260 000</b><small>iteraciones de PBKDF2 por verificación de contraseña</small></div>
           <div><b>0</b><small>filas de <code>public.*</code> visibles para <code>auth_ms_svc</code></small></div>
           <div><b>2</b><small>formatos de salida por cada ruta (XML por defecto, JSON opcional)</small></div>
+        </div>
+
+        <div class="aviso">
+          <strong>Ampliación posterior: correo de confirmación.</strong> Después del primer despliegue se agregó Mailpit (sección 06) para enviar un correo real cada vez que <code>POST /register</code> tiene éxito. Se corrieron dos pruebas adicionales, ambas documentadas abajo: que el correo llegue con el contenido correcto, y que un Mailpit caído no tumbe el registro.
         </div>
 
         <p>Flujo completo contra el servicio real, corriendo en el contenedor <code>auth-ms</code>:</p>
@@ -382,6 +397,39 @@ $ psql -U auth_ms_svc -d libreria -c "select usuario_id, email from auth.usuario
 ------------+-----------------
           1 | ana@example.com</code></pre>
 
+        <p>Verificación del correo de confirmación — registro real y contenido capturado por Mailpit:</p>
+        <pre><code>$ curl -s -X POST 'localhost:5002/register?format=json' \
+    -d '{"nombre":"Bea","apellido_paterno":"Ruiz","apellido_materno":"Soto",
+         "email":"bea@example.com","password":"Secreta123"}'
+{"apellido_materno":"Soto","apellido_paterno":"Ruiz","email":"bea@example.com",
+ "nombre":"Bea","usuario_id":3}
+
+$ curl -s http://localhost:8025/api/v1/messages | python3 -c "..."
+To: bea@example.com | Subject: Confirmacion de registro
+
+$ curl -s http://localhost:8025/api/v1/message/&lt;id&gt;
+From: no-reply@auth.maxthecoder.online
+To: bea@example.com
+Subject: Confirmacion de registro
+
+Hola Bea,
+
+Tu cuenta quedo registrada correctamente en auth-ms.
+Correo asociado: bea@example.com
+
+Si tu no solicitaste este registro, ignora este mensaje.</code></pre>
+
+        <p>Verificación de aislamiento de fallos — con <code>mailpit</code> detenido a propósito, el registro sigue en <code>201</code> y solo queda una advertencia en el log:</p>
+        <pre><code>$ docker stop auth-ms-mailpit
+$ curl -s -w '\nHTTP %{http_code}\n' -X POST 'localhost:5002/register?format=json' \
+    -d '{"nombre":"Carlos", ..., "email":"carlos@example.com", ...}'
+{"...","usuario_id":4}
+HTTP 201
+
+$ docker logs auth-ms --tail 3
+2026-09-18 23:24:45,838 WARNING  auth-ms :: No se pudo enviar el correo de confirmacion a carlos@example.com
+172.21.0.1 - - [...] "POST /register?format=json HTTP/1.1" 201 117 "-" "curl/8.14.1"</code></pre>
+
         <div class="table-wrap">
           <table>
             <thead><tr><th>Verificación</th><th>Resultado</th><th>Estado</th></tr></thead>
@@ -394,11 +442,13 @@ $ psql -U auth_ms_svc -d libreria -c "select usuario_id, email from auth.usuario
               <tr><td>Contraseña en la base</td><td><code>pbkdf2_sha256$260000$...</code>, nunca texto plano</td><td><span class="ok">Pasa</span></td></tr>
               <tr><td>Mínimo privilegio</td><td><code>permission denied</code> sobre <code>public.usuarios</code>; acceso normal a <code>auth.*</code></td><td><span class="ok">Pasa</span></td></tr>
               <tr><td><code>?format=</code> inválido</td><td>400 en XML (el formato por defecto, no el inválido)</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>Correo de confirmación</td><td>Mailpit lo captura con remitente, destinatario y cuerpo correctos</td><td><span class="ok">Pasa</span></td></tr>
+              <tr><td>Mailpit caído</td><td><code>/register</code> sigue en 201; queda solo un <code>log.warning</code>, nunca 500</td><td><span class="ok">Pasa</span></td></tr>
             </tbody>
           </table>
         </div>
 
-        <div class="result-callout"><strong>Resultado final</strong><span>8 de 8 verificaciones correctas</span></div>
+        <div class="result-callout"><strong>Resultado final</strong><span>10 de 10 verificaciones correctas</span></div>
       </div>
     </section>
 
