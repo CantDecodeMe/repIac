@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 06 · Cliente de escritorio Python/Tkinter</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    /* Complementos propios de este reporte. Todo lo demás viene de report.css. */
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision dl { margin: 0; font-size: 0.78rem; }
+    .decision dt {
+      float: left; clear: left; width: 92px; color: var(--pink);
+      font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; padding-top: 3px;
+    }
+    .decision dd { margin: 0 0 7px 100px; color: var(--muted); }
+
+    .metricas { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metricas div { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+    .metricas b { display: block; font-family: "Space Grotesk", sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--accent-dark); line-height: 1.1; }
+    .metricas small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.62rem; line-height: 1.35; }
+
+    .descargas { margin: 18px 0 0; padding: 0; list-style: none; font-size: 0.78rem; }
+    .descargas li { padding: 9px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; }
+    .descargas li:last-child { border-bottom: 0; }
+    .descargas a { color: var(--accent-dark); font-weight: 700; text-decoration: none; }
+    .descargas span { color: var(--muted); font-size: 0.72rem; text-align: right; }
+
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+
+    .galeria { margin: 20px 0 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .galeria figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--soft); }
+    .galeria img { width: 100%; height: auto; display: block; }
+    .galeria figcaption { padding: 10px 14px; font-size: 0.7rem; color: var(--muted); line-height: 1.45; }
+
+    @media (max-width: 650px) {
+      .galeria { grid-template-columns: 1fr; }
+      .metricas { grid-template-columns: repeat(2, 1fr); }
+      .indice { columns: 1; }
+      .decision dt { float: none; width: auto; }
+      .decision dd { margin-left: 0; }
+    }
+    @media print {
+      .metricas b { font-size: 15pt; }
+      .indice { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 06</p>
+      <h1>Un quinto microservicio no,<br>ahora toca el <em>cliente.</em></h1>
+      <p class="report-lead">Una aplicación de escritorio en Python (Tkinter/ttk, sin dependencias gráficas externas) que consume <code>auth-ms</code> (Ej. 05) y <code>libros-ms</code> (Ej. 04) exclusivamente por HTTP — sin ninguna conexión directa a PostgreSQL — con sesión persistente, semáforo de salud de ambos servicios, catálogo con búsqueda y CRUD completo de libros, y una pantalla de configuración que permite correr el mismo build contra los servicios locales o contra el despliegue público sin tocar código.</p>
+      <div class="header-tags">
+        <span>Python 3.10+</span><span>Tkinter · ttk</span><span>requests</span><span>Solo HTTP, sin BD</span><span>CRUD completo</span><span>Tolerancia a fallos</span><span>Config. persistente</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y alcance</a></li>
+        <li><a href="#s2">02 · Arquitectura</a></li>
+        <li><a href="#s3">03 · Cómo se relaciona con ej02/03/04/05</a></li>
+        <li><a href="#s4">04 · Decisiones de ingeniería</a></li>
+        <li><a href="#s5">05 · Bitácora de integración</a></li>
+        <li><a href="#s6">06 · Evidencia individual</a></li>
+        <li><a href="#s7">07 · Problemas encontrados y soluciones</a></li>
+        <li><a href="#s8">08 · Conclusiones</a></li>
+        <li><a href="#s9">09 · Uso de IA y prompts</a></li>
+        <li><a href="#s10">10 · Reflexión personal</a></li>
+      </ul>
+    </header>
+
+    <!-- ============================================================ -->
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>El enunciado pide un cliente de escritorio (Tkinter o PySide, en Python 3.10+) que consuma <code>auth-ms</code> y <code>libros-ms</code> <strong>solo por HTTP</strong> — nada de acceso directo a la base de datos desde el cliente. Debe cubrir, como mínimo: pantallas de registro/login/logout con verificación de cuenta y sesión persistida que se revalida contra el servidor; un panel principal con cinco áreas separadas (sesión y perfil, catálogo, administración de libros, estado de los servicios, configuración); un indicador de salud de tres estados para cada microservicio, con revisión periódica y manual; una prueba obligatoria de tolerancia a fallos (servicios arriba → <code>libros-ms</code> caído → <code>libros-ms</code> recuperado → URL/puerto incorrecto); navegación y búsqueda completas del catálogo; CRUD completo sobre <code>/books</code> demostrando la diferencia real entre <code>PUT</code> y <code>PATCH</code>; manejo de errores HTTP comprensible (nunca un traceback crudo); y una pantalla de configuración editable, probable, guardable y restaurable, para que el mismo build corra contra <code>localhost</code> o contra el despliegue público sin cambiar una sola línea de código.</p>
+
+        <p><strong>Dentro del alcance:</strong> el cliente completo en <code>apps/Python_app</code>, más las ampliaciones a <code>auth-ms</code> y <code>libros-ms</code> que el enunciado exige y que ninguno de los dos tenía todavía (sección 03).</p>
+        <p><strong>Fuera del alcance, a propósito:</strong> cualquier acceso directo del cliente a PostgreSQL — si un dato no está expuesto por un endpoint HTTP, el cliente simplemente no puede verlo ni tocarlo.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <p>El cliente es puro Python de biblioteca estándar más una sola dependencia externa (<code>requests&gt;=2.31,&lt;3</code>); Tkinter viene incluido con Python en Windows y Linux, así que no repite el problema de empaquetado que sí tuvo el cliente Electron del Ejercicio 04. Cada pantalla vive en su propio módulo bajo <code>ui/</code>, siguiendo exactamente el recorrido que pide el enunciado (GUI → configuración → comunicación HTTP → autenticación/sesión → libros → comprobación de servicios):</p>
+
+        <pre><code>src/
+├── main.py                        punto de entrada
+├── config.py                      URLs de los microservicios, persistente
+├── session_store.py               token de sesión persistente en disco
+├── api/
+│   ├── http_utils.py              wrapper HTTP compartido (timeouts, errores de conexión)
+│   ├── auth_client.py             cliente de auth-ms (login, registro, verify, perfil...)
+│   └── libros_client.py           cliente de libros-ms (parsea el XML del contrato)
+└── ui/
+    ├── app.py                     ventana raíz y controlador de navegación
+    ├── pantalla_login.py          autenticación
+    ├── pantalla_registro.py       alta de cuenta
+    ├── pantalla_principal.py      panel con las 5 pestañas
+    ├── pantalla_perfil.py         sesión y perfil del usuario
+    ├── pantalla_catalogo.py       búsqueda y detalle de libros
+    ├── pantalla_administracion.py CRUD de libros (POST/PUT/PATCH/DELETE)
+    ├── pantalla_estado.py         semáforo de salud de ambos microservicios
+    └── pantalla_configuracion.py  URLs de los microservicios</code></pre>
+
+        <p>La configuración y la sesión se guardan en <code>~/.libreria-client/</code> (o <code>%APPDATA%\.libreria-client\</code> en Windows), fuera del directorio del código fuente, y por defecto apuntan a <code>http://localhost:5002</code> (auth-ms) y <code>http://localhost:5001</code> (libros-ms); la pestaña de Configuración permite probar, guardar y restaurar esos valores sin reiniciar la app, y guardar cierra la sesión activa a propósito — una sesión (cookie) solo es válida contra el servidor con el que se abrió.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s3">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Cómo se relaciona con ej02, ej03, ej04 y ej05</h2>
+        <p>Es el primer ejercicio de la serie que <strong>no agrega un microservicio nuevo</strong>, sino un consumidor que se apoya en dos de los que ya existían — y que, al construirlo, forzó a ampliar ambos.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Aspecto</th><th>Ej. 04 (libros-ms)</th><th>Ej. 05 (auth-ms)</th><th>Ej. 06 (cliente)</th></tr></thead>
+            <tbody>
+              <tr><td>Rol</td><td>Microservicio REST/XML</td><td>Microservicio REST/XML+JSON</td><td>Consumidor de escritorio</td></tr>
+              <tr><td>Acceso a la base</td><td>Solo lectura de <code>public</code> + escritura acotada en <code>libros</code>/<code>libro_autor</code></td><td>Lectura/escritura en su esquema <code>auth</code></td><td><strong>Ninguno</strong> — todo pasa por HTTP</td></tr>
+              <tr><td>Puerto local</td><td>5001</td><td>5002</td><td>— (proceso de escritorio, sin puerto propio)</td></tr>
+              <tr><td>Qué se le agregó para este ejercicio</td><td>CRUD de escritura completo en <code>/books</code></td><td><code>/verify</code>, <code>/session/extend</code>, <code>PATCH /profile</code></td><td>—</td></tr>
+              <tr><td>Despliegue</td><td><code>deploy-iac/ejercicio-04/</code></td><td><code>deploy-iac/ejercicio-05/</code></td><td><code>deploy-iac/ejercicio-06/apps/Python_app</code> (sin desplegar; corre en la máquina del usuario)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>La diferencia real de este ejercicio es que el trabajo de integración quedó del lado del <strong>consumidor</strong>: en vez de diseñar un esquema nuevo o un rol de PostgreSQL, hubo que descubrir dónde el contrato HTTP de los dos servicios existentes no alcanzaba lo que pedía el enunciado, y ampliarlos desde ahí — sección 04.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+
+        <div class="decision">
+          <h3>El catálogo solo se consume en XML, nunca <code>?format=json</code></h3>
+          <dl>
+            <dt>Necesidad</dt><dd>El enunciado sugiere negociar formato con <code>?format=json</code>, como en <code>auth-ms</code>.</dd>
+            <dt>Decisión</dt><dd>El cliente parsea el XML real que ya devuelve <code>libros-ms</code> (<code>api/libros_client.py</code>), igual que el cliente Electron del Ejercicio 04.</dd>
+            <dt>Justificación</dt><dd><code>libros-ms</code> nunca negoció JSON: ese parámetro en su contrato real es un filtro de negocio (formato físico/digital del libro), no una elección de representación. Cambiar su significado habría roto un contrato ya en uso.</dd>
+            <dt>Ventajas</dt><dd>No se toca <code>libros-ms</code>; se reutiliza el mismo criterio de parsing ya probado en el Ejercicio 04.</dd>
+            <dt>Limitaciones</dt><dd>El cliente mantiene su propio parser XML en vez de usar el soporte JSON nativo de <code>requests</code>.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Solo se muestra "Género", no "Categoría" por separado</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Mostrar la clasificación de cada libro en el catálogo y en su detalle.</dd>
+            <dt>Decisión</dt><dd>Una sola etiqueta, "Género", con el valor real de <code>categorias</code>.</dd>
+            <dt>Justificación</dt><dd>El modelo de datos real solo tiene una clasificación; una etiqueta "Categoría" separada siempre estaría vacía.</dd>
+            <dt>Ventajas</dt><dd>La UI queda fiel al modelo real, sin campos fantasma.</dd>
+            <dt>Limitaciones</dt><dd>Si el contrato agregara algún día una taxonomía real distinta, habría que revisar esta pantalla.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3><code>auth-ms</code> se amplió con verificación, extensión de sesión y perfil</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>El enunciado exige <code>GET /verify</code>, <code>POST /session/extend</code> y <code>PATCH /profile</code>, que no existían en el Ejercicio 05.</dd>
+            <dt>Decisión</dt><dd>Ampliar <code>auth-ms</code> con las tres rutas, sobre el mismo esquema <code>auth</code> ya auditado.</dd>
+            <dt>Justificación</dt><dd>Son comportamientos que necesitan estado del lado del servidor (token de verificación, expiración de sesión) — el cliente no puede simularlos solo con HTTP.</dd>
+            <dt>Ventajas</dt><dd>Reutiliza el mismo patrón de mínimo privilegio y de hashing ya verificado en el Ejercicio 05.</dd>
+            <dt>Limitaciones</dt><dd>Amplía el alcance original de ej05 después de su propia entrega — detalle completo en <code>ejercicio-05/README.md</code> y <code>ejercicio-05/sql/03_verificacion_email.sql</code>.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3><code>libros-ms</code> se amplió con CRUD de escritura sobre <code>/books</code></h3>
+          <dl>
+            <dt>Necesidad</dt><dd>El enunciado exige demostrar <code>POST</code>/<code>PUT</code>/<code>PATCH</code>/<code>DELETE</code> reales sobre el catálogo, y <code>libros-ms</code> solo tenía lectura.</dd>
+            <dt>Decisión</dt><dd>Agregar las cuatro rutas de escritura, ampliando el rol <code>libros_ms_svc</code> con <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> acotado únicamente a <code>libros</code> y <code>libro_autor</code>.</dd>
+            <dt>Justificación</dt><dd>Mismo patrón de mínimo privilegio de toda la serie: nunca dar permisos de escritura sobre <code>categorias</code>, <code>editoriales</code> ni <code>autores</code>.</dd>
+            <dt>Ventajas</dt><dd>Valida el ciclo de vida completo de un libro de punta a punta, sin salirse del alcance declarado.</dd>
+            <dt>Limitaciones</dt><dd>Autor, género y editorial se resuelven por nombre exacto contra catálogos que deben preexistir — el cliente no puede crear catálogos nuevos; si el nombre no existe, <code>libros-ms</code> responde <code>422</code>.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s5" class="page-break-before">
+      <div class="section-number">05</div>
+      <div>
+        <h2>Bitácora de integración</h2>
+        <p>Pruebas realizadas contra los microservicios reales (<code>auth-ms</code> en <code>localhost:5002</code>, <code>libros-ms</code> en <code>localhost:5001</code>, salvo donde se indica lo contrario) — sin mocks.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Prueba</th><th>Acción realizada</th><th>Endpoint</th><th>Resultado HTTP</th><th>Resultado observado</th></tr></thead>
+            <tbody>
+              <tr><td>01</td><td>Registro de usuario</td><td>Alta de cuenta nueva</td><td><code>POST /register</code></td><td>201</td><td>Cuenta creada con <code>activo=false</code>; correo de verificación entregado a Mailpit</td></tr>
+              <tr><td>02</td><td>Verificación de cuenta</td><td>Abrir el enlace del correo</td><td><code>GET /verify</code></td><td>200</td><td><code>activo=true</code>; la cuenta ya puede autenticarse</td></tr>
+              <tr><td>03</td><td>Login con contraseña incorrecta</td><td>Intento de inicio de sesión con password mala</td><td><code>POST /login</code></td><td>401</td><td>"Email o contraseña incorrectos." (pantalla de login)</td></tr>
+              <tr><td>04</td><td>Login correcto</td><td>Inicio de sesión con las credenciales correctas</td><td><code>POST /login</code></td><td>200</td><td>Sesión iniciada, panel principal visible</td></tr>
+              <tr><td>05</td><td>Consultar sesión activa</td><td>Comprobación de sesión al abrir el panel</td><td><code>GET /session</code></td><td>200</td><td><code>autenticado=true</code> con los datos del usuario</td></tr>
+              <tr><td>06</td><td>Extender sesión</td><td>Botón "Extender sesión" en la pestaña de perfil</td><td><code>POST /session/extend</code></td><td>200</td><td><code>duracion_segundos=7200</code>; cuenta regresiva reiniciada</td></tr>
+              <tr><td>07</td><td>Editar perfil</td><td>Cambio de nombre desde la pestaña de perfil</td><td><code>PATCH /profile</code></td><td>200</td><td>Nombre actualizado y reflejado de inmediato en la barra superior</td></tr>
+              <tr><td>08</td><td>Estado de auth-ms</td><td>Revisión manual del semáforo</td><td><code>GET /health</code></td><td>200</td><td><code>status=ok</code> → punto verde</td></tr>
+              <tr><td>09</td><td>Estado de libros-ms</td><td>Revisión manual del semáforo</td><td><code>GET /healthz</code></td><td>200</td><td><code>status=ok</code> → punto verde</td></tr>
+              <tr><td>10</td><td>Consultar catálogo</td><td>Carga inicial de la pestaña Catálogo</td><td><code>GET /books</code></td><td>200</td><td>10 libros listados con género, año, precio, existencia y formato</td></tr>
+              <tr><td>11</td><td>Búsqueda por título</td><td>Filtro de texto en la pestaña Catálogo</td><td><code>GET /books?title=...</code></td><td>200</td><td>Resultado filtrado a los libros que coinciden</td></tr>
+              <tr><td>12</td><td>Detalle de un libro</td><td>Selección de una fila en la tabla</td><td><code>GET /books/{isbn}</code> (ya resuelto en el listado)</td><td>—</td><td>Panel de detalle con autor(es), género, precio, imagen y conceptos asociados</td></tr>
+              <tr><td>13</td><td>Alta de libro (evidencia individual)</td><td>Crear <code>PRUEBA INTEGRACION - 000000</code></td><td><code>POST /books</code></td><td>201</td><td>Libro creado y visible de inmediato en el catálogo</td></tr>
+              <tr><td>14</td><td>Reemplazo total</td><td>PUT con título/precio/existencia/formato nuevos, resto en blanco</td><td><code>PUT /books/{isbn}</code></td><td>200</td><td>Los campos opcionales que se dejaron vacíos quedaron <code>NULL</code> en el servidor (reemplazo real, no un parche disfrazado)</td></tr>
+              <tr><td>15</td><td>Actualización parcial</td><td>PATCH marcando solo la casilla de "precio"</td><td><code>PATCH /books/{isbn}</code></td><td>200</td><td>Solo el precio cambió; título/existencia/formato del paso anterior quedaron intactos</td></tr>
+              <tr><td>16</td><td>Alta con ISBN duplicado</td><td>Repetir POST con el mismo ISBN</td><td><code>POST /books</code></td><td>409</td><td>"Ya existe un libro con ese ISBN."</td></tr>
+              <tr><td>17</td><td>Consultar ISBN inexistente</td><td>"Cargar por ISBN" con un ISBN inventado</td><td><code>GET /books/{isbn}</code></td><td>404</td><td>"No existe un libro con isbn ..."</td></tr>
+              <tr><td>18</td><td>Eliminación de libro</td><td>DELETE tras confirmación</td><td><code>DELETE /books/{isbn}</code></td><td>204</td><td>Libro eliminado, catálogo refrescado</td></tr>
+              <tr><td>19</td><td>Confirmación final del ciclo</td><td>Volver a cargar el mismo ISBN tras eliminarlo</td><td><code>GET /books/{isbn}</code></td><td>404</td><td>Confirma que el ciclo POST→GET→PATCH→GET→DELETE→GET quedó completo y limpio</td></tr>
+              <tr><td>20</td><td>Microservicio de libros caído (Caso B)</td><td>Semáforo revisado contra un puerto cerrado</td><td><code>GET /healthz</code></td><td>sin respuesta (conexión rechazada)</td><td>Punto rojo, "Inaccesible: no se pudo conectar."; la app <strong>no se cae</strong></td></tr>
+              <tr><td>21</td><td>Recuperación del servicio (Caso C)</td><td>Semáforo revisado de nuevo contra la URL real</td><td><code>GET /healthz</code></td><td>200</td><td>Punto vuelve a verde sin reiniciar la app</td></tr>
+              <tr><td>22</td><td>URL o puerto incorrecto (Caso D)</td><td>Apuntar <code>libros-ms</code> a un puerto cerrado desde Configuración</td><td>—</td><td>conexión rechazada</td><td>"no se pudo conectar a ..."; error manejado, sin traceback visible</td></tr>
+              <tr><td>23</td><td>Configuración: servidores locales</td><td>"Probar conexión" con las URL de <code>localhost</code></td><td><code>GET /health</code>, <code>GET /healthz</code></td><td>200 / 200</td><td>Ambos servicios responden correctamente</td></tr>
+              <tr><td>24</td><td>Configuración: servidores remotos (túnel Cloudflare)</td><td>"Probar conexión" con <code>https://auth.maxthecoder.online</code> y <code>https://libros.maxthecoder.online</code></td><td><code>GET /health</code>, <code>GET /healthz</code></td><td>sin respuesta / 200</td><td><strong>Hallazgo real:</strong> <code>libros-ms</code> responde por el túnel; <code>auth-ms</code> no, porque su hostname público todavía no está dado de alta en Cloudflare Zero Trust (paso manual pendiente). No es un bug del cliente.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="aviso">
+          <strong>Pendiente antes de la entrega final:</strong> la prueba 24 quedó documentada tal cual salió, sin maquillar el resultado. Antes de grabar la evidencia de "funcionamiento remoto" final hay que dar de alta el hostname <code>auth</code> en el túnel de Cloudflare (Zero Trust → Networks → Tunnels → Public Hostnames → Add, con los valores que ya están en <code>ejercicio-05/README.md</code>) y repetir la prueba 24.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s6" class="page-break-before">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Evidencia individual</h2>
+        <p>El enunciado (sección 16) pide agregar temporalmente al catálogo un libro de prueba titulado <code>PRUEBA INTEGRACION - &lt;MATRÍCULA&gt;</code> y demostrar el ciclo completo <code>POST → GET → PATCH → GET → DELETE → GET</code>, eliminando el registro al terminar. Corresponde a las filas 13–19 de la bitácora de arriba.</p>
+
+        <div class="aviso">
+          <strong>Pendiente antes de la entrega final:</strong> esta corrida usó <code>PRUEBA INTEGRACION - 000000</code> como marcador, no la matrícula real (<strong>615639</strong>). Hay que repetir el ciclo completo con el título y el ISBN correctos (<code>PRUEBA INTEGRACION - 615639</code>) y volver a capturar estas ocho pantallas antes de entregar — el enunciado es explícito en que debe ser la matrícula real.
+        </div>
+
+        <div class="galeria">
+          <figure>
+            <img src="fotos/01_pantalla_inicial.png" alt="Pantalla inicial de la aplicación de escritorio, con los campos de email y contraseña para iniciar sesión" loading="lazy">
+            <figcaption>Pantalla inicial: login con email y contraseña, sin sesión activa todavía.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/04_login_correcto.png" alt="Panel principal tras un login correcto, con la pestaña de sesión y perfil activa" loading="lazy">
+            <figcaption>Login correcto: sesión iniciada y panel principal con sus cinco pestañas visible.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/07_catalogo.png" alt="Pestaña de catálogo mostrando la lista de libros con género, año, precio, existencia y formato" loading="lazy">
+            <figcaption>Catálogo cargado desde <code>GET /books</code>, parseando el XML real de <code>libros-ms</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/10_alta_libro_post.png" alt="Formulario de administración de libros tras crear el libro PRUEBA INTEGRACION - 000000 mediante POST" loading="lazy">
+            <figcaption><code>POST /books</code>: alta del libro de prueba, con el mensaje de confirmación "Libro creado".</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/12_patch_parcial.png" alt="Formulario de administración de libros aplicando un PATCH que solo modifica el precio" loading="lazy">
+            <figcaption><code>PATCH /books/{isbn}</code>: solo la casilla "precio" marcada para incluir en el parche — el resto de los campos del libro quedan intactos.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/16_get_final_confirma_borrado.png" alt="Mensaje de error 404 al volver a consultar el ISBN del libro de prueba después de eliminarlo" loading="lazy">
+            <figcaption>Confirmación final del ciclo: <code>GET /books/{isbn}</code> tras el <code>DELETE</code> responde 404 — el registro de prueba quedó eliminado.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/19_libros_detenido.png" alt="Pestaña de estado de los servicios con el semáforo de libros-ms en rojo, marcado como inaccesible" loading="lazy">
+            <figcaption>Prueba de tolerancia a fallos: <code>libros-ms</code> detenido a propósito — semáforo en rojo, la app sigue respondiendo.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/20_libros_recuperado.png" alt="Pestaña de estado de los servicios con el semáforo de libros-ms de vuelta en verde tras reiniciar el servicio" loading="lazy">
+            <figcaption>Recuperación: al reiniciar <code>libros-ms</code>, el semáforo vuelve a verde sin reiniciar la app.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s7" class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Problemas encontrados y soluciones</h2>
+
+        <p><strong>El bug más interesante apareció generando la evidencia, no durante el desarrollo del cliente.</strong> Al reiniciar la app con una sesión guardada y luego iniciar sesión de nuevo, <code>requests</code> lanzaba <code>CookieConflictError</code> por dos cookies <code>auth_sid</code> con dominio distinto en el mismo jar. Se reprodujo de forma aislada hasta encontrar que <code>restaurar_token()</code> sembraba la cookie guardada sin limpiar el jar primero:</p>
+
+        <pre><code>-    def token_actual(self) -> str | None:
+-        return self.sesion.cookies.get("auth_sid")
++    def token_actual(self) -> str | None:
++        # cookies.get() revienta con CookieConflictError si hay dos
++        # cookies "auth_sid" con distinto dominio en el mismo jar.
++        for cookie in self.sesion.cookies:
++            if cookie.name == "auth_sid":
++                return cookie.value
++        return None
+
+     def restaurar_token(self, token: str) -> None:
++        # Limpia el jar antes de sembrar el token guardado: evita que
++        # conviva con una cookie de un dominio distinto.
++        self.sesion.cookies.clear()
+         self.sesion.cookies.set("auth_sid", token)</code></pre>
+
+        <p>Otros límites conocidos, documentados en el <code>README.md</code> del cliente en vez de ocultarse:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Limitación</th><th>Detalle</th></tr></thead>
+            <tbody>
+              <tr><td>Tiempo de sesión mostrado</td><td>Es una estimación del lado del cliente, no un dato que devuelva el servidor — <code>GET /session</code> no incluye cuándo expira. Puede desincronizarse si el servidor cambia su duración por defecto.</td></tr>
+              <tr><td>Autor, género y editorial</td><td>Se resuelven por nombre exacto contra catálogos que deben preexistir; el cliente no puede crear catálogos nuevos. Si el nombre no existe, <code>libros-ms</code> responde <code>422</code>.</td></tr>
+              <tr><td><code>COOKIE_SECURE</code></td><td>Debe quedar en <code>false</code> en el <code>.env</code> de <code>auth-ms</code> para funcionar contra un endpoint <code>http://</code> local; contra el despliegue público (siempre <code>https://</code>) no es un problema.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s8">
+      <div class="section-number">08</div>
+      <div>
+        <h2>Conclusiones</h2>
+        <p>Este ejercicio invirtió el tipo de trabajo de la serie: en vez de diseñar un microservicio nuevo, el reto fue descubrir en dónde el contrato HTTP de dos servicios ya construidos no alcanzaba lo que un cliente real necesitaba — y ampliarlos desde ahí, sin romper a los consumidores que ya existían (el cliente Electron del Ejercicio 04 sigue funcionando exactamente igual contra <code>libros-ms</code>).</p>
+        <p>La prueba de tolerancia a fallos confirmó que la separación cliente/microservicio/base de datos funciona como se esperaba: cuando <code>libros-ms</code> deja de responder, la app no se cae — la capa HTTP atrapa el error de conexión y la pantalla de estado lo muestra en rojo, sin traceback. Consumir los servicios en local o por el túnel de Cloudflare se comportó igual desde el cliente; la diferencia real fue la latencia y, en un caso, un hostname público todavía no dado de alta (sección 05, prueba 24).</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s9">
+      <div class="section-number">09</div>
+      <div>
+        <h2>Uso de IA y prompts</h2>
+        <p>Todo el ejercicio se desarrolló con <strong>Claude Code</strong> (Anthropic) en una sesión de terminal con acceso al Raspberry Pi, siguiendo el mismo patrón que los ejercicios 03, 04 y 05: primero exploró el cliente Electron del Ejercicio 04 y ambos microservicios para entender qué faltaba, después propuso el plan de ampliación de <code>auth-ms</code>/<code>libros-ms</code> y la estructura del cliente, y solo tras la aprobación del estudiante escribió el código.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prompt (resumido)</th><th>Qué produjo la IA</th><th>Qué se aceptó / modificó</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>El enunciado de <code>instructions.md</code>, pidiendo un cliente Tkinter para <code>auth-ms</code> y <code>libros-ms</code>.</td>
+                <td>Detectó que <code>libros-ms</code> no negociaba JSON y que <code>auth-ms</code> no tenía <code>/verify</code>, <code>/session/extend</code> ni <code>PATCH /profile</code>, y propuso ampliar ambos en vez de simular esos comportamientos en el cliente.</td>
+                <td><strong>Aceptado</strong> como base del plan.</td>
+              </tr>
+              <tr>
+                <td>Plan aprobado: construir el cliente, ampliar los dos microservicios, y generar la evidencia pedida por el enunciado (screenshots, bitácora, reflexión).</td>
+                <td>Escribió el cliente completo, las ampliaciones de <code>auth-ms</code>/<code>libros-ms</code>, un script (<code>scripts/generar_evidencias.py</code>) que corre la app real contra un display virtual (Xvfb) y captura las 20 pantallas pedidas por la sección 15 del enunciado, más un borrador de <code>bitacora.md</code> y <code>reflexion.md</code> a partir de lo realmente observado.</td>
+                <td><strong>Aceptado</strong> para el código y la bitácora (son hechos verificables); la reflexión quedó marcada explícitamente en el propio archivo como borrador a personalizar antes de la entrega — ver sección 10.</td>
+              </tr>
+              <tr>
+                <td>«Revisa el journal para ver qué ejercicios ya están documentados» — el ejercicio 06 no aparecía en ningún lado.</td>
+                <td>Encontró la evidencia ya generada pero sin commitear, la commiteó en <code>deploy-iac</code>, y redactó esta entrada del journal más la tarjeta y el contador de la portada.</td>
+                <td><strong>Aceptado.</strong> Es este mismo reporte.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p style="margin-top:16px;">Mismo patrón que en los ejercicios anteriores: nada se dio por probado hasta correr la app real contra los microservicios reales, con capturas de pantalla reales — no inventadas ni simuladas. Dos hallazgos quedaron marcados explícitamente como pendientes en vez de ocultarse: la prueba 24 (hostname de <code>auth-ms</code> no dado de alta en Cloudflare) y la evidencia individual de la sección 06 (usó una matrícula de marcador, <code>000000</code>, en vez de la real).</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="s10">
+      <div class="section-number">10</div>
+      <div>
+        <h2>Reflexión personal</h2>
+
+        <div class="aviso">
+          <strong>Nota de transparencia:</strong> el texto de abajo es un borrador escrito por Claude Code a partir de lo que realmente pasó al construir y probar el cliente en esta sesión — no una reflexión inventada de la nada, pero tampoco la redacción final. La consigna pide la reflexión <em>personal</em> del estudiante, así que este borrador se revisa y se ajusta a las propias palabras antes de la entrega final.
+        </div>
+
+        <p>La parte más difícil no fue construir la interfaz, sino descubrir que el contrato entre cliente y microservicios no estaba completo del lado del servidor. Al escribir el cliente contra <code>libros-ms</code> esperando pedir <code>?format=json</code> como decía el enunciado, encontré que ese parámetro ya significaba otra cosa en el servicio real (formato físico/digital del libro): nunca negoció JSON, siempre respondió XML. Identifiqué la causa leyendo el código fuente del microservicio, no por prueba y error, y la resolví parseando el XML real en el cliente en vez de forzar un cambio en un contrato ya en uso.</p>
+
+        <p>Encontré algo similar con <code>auth-ms</code>: el enunciado pedía <code>GET /verify</code>, <code>POST /session/extend</code> y <code>PATCH /profile</code>, que no existían. Tuve que extender el microservicio antes de terminar el cliente, agregando un token de verificación y separando "credenciales inválidas" de "cuenta sin verificar" como dos errores distintos (401 contra 403) — antes el servicio los trataba igual.</p>
+
+        <p>El bug más interesante apareció generando la evidencia, no durante el desarrollo: al reiniciar la app con una sesión guardada y luego iniciar sesión de nuevo, <code>requests</code> lanzaba <code>CookieConflictError</code> por dos cookies <code>auth_sid</code> con dominio distinto en el mismo jar. Lo reproduje de forma aislada hasta encontrar que <code>restaurar_token()</code> sembraba la cookie sin limpiar el jar primero, y lo corregí ahí.</p>
+
+        <p>Cuando el microservicio de libros deja de responder, la app no se cae: la capa HTTP atrapa el error de conexión y la pantalla de estado lo muestra en rojo, sin traceback. Consumir los servicios en local o por el túnel de Cloudflare se comportó igual desde el cliente — la diferencia real fue la latencia y, en un caso, un hostname público que aún no estaba dado de alta. Lo que más aprendí es que el cliente y el microservicio pueden estar "terminados" por separado y aun así no integrar bien si nadie prueba el camino completo end-to-end.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+    </footer>
+  </main>
+</body>
+</html>
