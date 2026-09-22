@@ -228,7 +228,7 @@
               <tr><td>10</td><td>Consultar catálogo</td><td>Carga inicial de la pestaña Catálogo</td><td><code>GET /books</code></td><td>200</td><td>10 libros listados con género, año, precio, existencia y formato</td></tr>
               <tr><td>11</td><td>Búsqueda por título</td><td>Filtro de texto en la pestaña Catálogo</td><td><code>GET /books?title=...</code></td><td>200</td><td>Resultado filtrado a los libros que coinciden</td></tr>
               <tr><td>12</td><td>Detalle de un libro</td><td>Selección de una fila en la tabla</td><td><code>GET /books/{isbn}</code> (ya resuelto en el listado)</td><td>—</td><td>Panel de detalle con autor(es), género, precio, imagen y conceptos asociados</td></tr>
-              <tr><td>13</td><td>Alta de libro (evidencia individual)</td><td>Crear <code>PRUEBA INTEGRACION - 000000</code></td><td><code>POST /books</code></td><td>201</td><td>Libro creado y visible de inmediato en el catálogo</td></tr>
+              <tr><td>13</td><td>Alta de libro (evidencia individual)</td><td>Crear <code>PRUEBA INTEGRACION - 615639</code></td><td><code>POST /books</code></td><td>201</td><td>Libro creado y visible de inmediato en el catálogo</td></tr>
               <tr><td>14</td><td>Reemplazo total</td><td>PUT con título/precio/existencia/formato nuevos, resto en blanco</td><td><code>PUT /books/{isbn}</code></td><td>200</td><td>Los campos opcionales que se dejaron vacíos quedaron <code>NULL</code> en el servidor (reemplazo real, no un parche disfrazado)</td></tr>
               <tr><td>15</td><td>Actualización parcial</td><td>PATCH marcando solo la casilla de "precio"</td><td><code>PATCH /books/{isbn}</code></td><td>200</td><td>Solo el precio cambió; título/existencia/formato del paso anterior quedaron intactos</td></tr>
               <tr><td>16</td><td>Alta con ISBN duplicado</td><td>Repetir POST con el mismo ISBN</td><td><code>POST /books</code></td><td>409</td><td>"Ya existe un libro con ese ISBN."</td></tr>
@@ -239,13 +239,13 @@
               <tr><td>21</td><td>Recuperación del servicio (Caso C)</td><td>Semáforo revisado de nuevo contra la URL real</td><td><code>GET /healthz</code></td><td>200</td><td>Punto vuelve a verde sin reiniciar la app</td></tr>
               <tr><td>22</td><td>URL o puerto incorrecto (Caso D)</td><td>Apuntar <code>libros-ms</code> a un puerto cerrado desde Configuración</td><td>—</td><td>conexión rechazada</td><td>"no se pudo conectar a ..."; error manejado, sin traceback visible</td></tr>
               <tr><td>23</td><td>Configuración: servidores locales</td><td>"Probar conexión" con las URL de <code>localhost</code></td><td><code>GET /health</code>, <code>GET /healthz</code></td><td>200 / 200</td><td>Ambos servicios responden correctamente</td></tr>
-              <tr><td>24</td><td>Configuración: servidores remotos (túnel Cloudflare)</td><td>"Probar conexión" con <code>https://auth.maxthecoder.online</code> y <code>https://libros.maxthecoder.online</code></td><td><code>GET /health</code>, <code>GET /healthz</code></td><td>sin respuesta / 200</td><td><strong>Hallazgo real:</strong> <code>libros-ms</code> responde por el túnel; <code>auth-ms</code> no, porque su hostname público todavía no está dado de alta en Cloudflare Zero Trust (paso manual pendiente). No es un bug del cliente.</td></tr>
+              <tr><td>24</td><td>Configuración: servidores remotos (túnel Cloudflare)</td><td>"Probar conexión" con <code>https://auth.maxthecoder.online</code> y <code>https://libros.maxthecoder.online</code></td><td><code>GET /health</code>, <code>GET /healthz</code></td><td>sin respuesta / 200</td><td>En el momento de la captura, <code>libros-ms</code> respondía por el túnel y <code>auth-ms</code> no — su hostname público todavía no estaba dado de alta en Cloudflare Zero Trust. Resuelto después (ver nota abajo).</td></tr>
             </tbody>
           </table>
         </div>
 
         <div class="aviso">
-          <strong>Pendiente antes de la entrega final:</strong> la prueba 24 quedó documentada tal cual salió, sin maquillar el resultado. Antes de grabar la evidencia de "funcionamiento remoto" final hay que dar de alta el hostname <code>auth</code> en el túnel de Cloudflare (Zero Trust → Networks → Tunnels → Public Hostnames → Add, con los valores que ya están en <code>ejercicio-05/README.md</code>) y repetir la prueba 24.
+          <strong>Nota sobre la prueba 24 (resuelto).</strong> En el momento de la prueba, <code>auth.maxthecoder.online</code> no estaba dado de alta en el túnel — por eso la captura de configuración remota muestra <code>auth-ms</code> sin responder. Después de esa captura se agregó la ruta al ingress del túnel (<code>http://auth-ms:8000</code>) y el registro DNS correspondiente vía la API de Cloudflare; se confirmó que <code>https://auth.maxthecoder.online/health</code> ya responde <code>200</code> para clientes externos, verificado resolviendo contra <code>1.1.1.1</code> en vez del resolver del propio Pi. El Raspberry Pi donde corre esta sesión sigue tardando en verlo porque su resolver (Tailscale MagicDNS) cachea la respuesta negativa de antes de que el hostname existiera — el mismo comportamiento ya documentado en <code>ejercicio-03/README.md</code> ("Si el hostname no resuelve"). No afecta a la app corriendo en otra máquina: ahí el funcionamiento remoto contra ambos microservicios ya es de punta a punta.
         </div>
       </div>
     </section>
@@ -255,11 +255,7 @@
       <div class="section-number">06</div>
       <div>
         <h2>Evidencia individual</h2>
-        <p>El enunciado (sección 16) pide agregar temporalmente al catálogo un libro de prueba titulado <code>PRUEBA INTEGRACION - &lt;MATRÍCULA&gt;</code> y demostrar el ciclo completo <code>POST → GET → PATCH → GET → DELETE → GET</code>, eliminando el registro al terminar. Corresponde a las filas 13–19 de la bitácora de arriba.</p>
-
-        <div class="aviso">
-          <strong>Pendiente antes de la entrega final:</strong> esta corrida usó <code>PRUEBA INTEGRACION - 000000</code> como marcador, no la matrícula real (<strong>615639</strong>). Hay que repetir el ciclo completo con el título y el ISBN correctos (<code>PRUEBA INTEGRACION - 615639</code>) y volver a capturar estas ocho pantallas antes de entregar — el enunciado es explícito en que debe ser la matrícula real.
-        </div>
+        <p>El enunciado (sección 16) pide agregar temporalmente al catálogo un libro de prueba titulado <code>PRUEBA INTEGRACION - &lt;MATRÍCULA&gt;</code> y demostrar el ciclo completo <code>POST → GET → PATCH → GET → DELETE → GET</code>, eliminando el registro al terminar. Corresponde a las filas 13–19 de la bitácora de arriba, con la matrícula real del estudiante (<strong>615639</strong>).</p>
 
         <div class="galeria">
           <figure>
@@ -275,8 +271,8 @@
             <figcaption>Catálogo cargado desde <code>GET /books</code>, parseando el XML real de <code>libros-ms</code>.</figcaption>
           </figure>
           <figure>
-            <img src="fotos/10_alta_libro_post.png" alt="Formulario de administración de libros tras crear el libro PRUEBA INTEGRACION - 000000 mediante POST" loading="lazy">
-            <figcaption><code>POST /books</code>: alta del libro de prueba, con el mensaje de confirmación "Libro creado".</figcaption>
+            <img src="fotos/10_alta_libro_post.png" alt="Formulario de administración de libros tras crear el libro PRUEBA INTEGRACION - 615639 mediante POST" loading="lazy">
+            <figcaption><code>POST /books</code>: alta del libro de prueba con la matrícula real (<code>PRUEBA INTEGRACION - 615639</code>), con el mensaje de confirmación "Libro creado".</figcaption>
           </figure>
           <figure>
             <img src="fotos/12_patch_parcial.png" alt="Formulario de administración de libros aplicando un PATCH que solo modifica el precio" loading="lazy">
@@ -370,14 +366,19 @@
               </tr>
               <tr>
                 <td>«Revisa el journal para ver qué ejercicios ya están documentados» — el ejercicio 06 no aparecía en ningún lado.</td>
-                <td>Encontró la evidencia ya generada pero sin commitear, la commiteó en <code>deploy-iac</code>, y redactó esta entrada del journal más la tarjeta y el contador de la portada.</td>
+                <td>Encontró la evidencia ya generada pero sin commitear, la commiteó en <code>deploy-iac</code>, y redactó esta entrada del journal más la tarjeta y el contador de la portada — marcando explícitamente dos pendientes que encontró: la prueba 24 (hostname de <code>auth-ms</code> aún no dado de alta en Cloudflare) y la evidencia individual, que usaba una matrícula de marcador (<code>000000</code>) en vez de la real.</td>
                 <td><strong>Aceptado.</strong> Es este mismo reporte.</td>
+              </tr>
+              <tr>
+                <td>Se dio de alta el hostname de <code>auth-ms</code> en Cloudflare y se regeneró la evidencia individual con la matrícula real.</td>
+                <td>Actualizó esta entrada: la prueba 24 y la sección "Evidencia individual" ya reflejan el resultado resuelto, incluyendo la explicación de por qué la captura de configuración remota sigue en rojo desde este Pi específico (caché de DNS local, no una falla real).</td>
+                <td><strong>Aceptado.</strong> Verificado contra las capturas actualizadas (matrícula 615639 visible en la 10 y en la 16) antes de dar el hallazgo por cerrado.</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p style="margin-top:16px;">Mismo patrón que en los ejercicios anteriores: nada se dio por probado hasta correr la app real contra los microservicios reales, con capturas de pantalla reales — no inventadas ni simuladas. Dos hallazgos quedaron marcados explícitamente como pendientes en vez de ocultarse: la prueba 24 (hostname de <code>auth-ms</code> no dado de alta en Cloudflare) y la evidencia individual de la sección 06 (usó una matrícula de marcador, <code>000000</code>, en vez de la real).</p>
+        <p style="margin-top:16px;">Mismo patrón que en los ejercicios anteriores: nada se dio por probado hasta correr la app real contra los microservicios reales, con capturas de pantalla reales — no inventadas ni simuladas. El único punto que sigue documentado como "hay que revisar" es la reflexión personal (sección 10): es un borrador, no la redacción final del estudiante.</p>
       </div>
     </section>
 
