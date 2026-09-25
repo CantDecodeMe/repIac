@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Actividad 07 · Animación didáctica de JWT</title>
+  <meta name="description" content="Qué es un JSON Web Token, cómo se construye y cómo viaja por una API REST de microservicios: anatomía, firma, expiración, refresco y seguridad.">
+  <meta name="color-scheme" content="dark">
+  <link rel="stylesheet" href="./tailwind.css">
+</head>
+<body>
+  <div id="progress" aria-hidden="true"></div>
+
+  <!-- ============ 1 · HERO ============ -->
+  <header id="hero" class="relative" style="height:230vh">
+    <div class="sticky top-0 min-h-screen flex flex-col justify-center px-4 md:px-8 max-w-5xl mx-auto py-10">
+      <a href="../../" class="text-muted text-sm no-underline hover:text-ink mb-8 w-fit">← Portafolio de actividades</a>
+      <p class="eyebrow mb-3">Actividad 07 · Autenticación en APIs REST</p>
+      <h1 class="text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight mb-5">¿Qué es un <span class="bg-gradient-to-r from-hdr via-pay to-sig bg-clip-text text-transparent">JWT</span>?</h1>
+      <p class="text-lg md:text-xl text-muted max-w-2xl mb-8">
+        Un <strong class="text-ink">JSON Web Token</strong> es una credencial <em>firmada</em>: el servidor la entrega tras el login
+        y el cliente la presenta en cada petición. El servidor no necesita guardar sesiones; le basta comprobar la firma.
+      </p>
+      <div class="card p-4 md:p-6 mb-6" aria-label="Token de ejemplo formándose">
+        <p class="text-xs text-muted mb-2 font-mono">Authorization: Bearer …</p>
+        <p id="hero-token" class="token" aria-live="off"></p>
+      </div>
+      <p class="text-muted text-sm float">Sigue bajando: el token se forma con tu scroll ↓</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ 2 · ANATOMÍA ============ -->
+    <section id="anatomia" class="scrolly px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-anatomia">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">Anatomía</p>
+        <h2 id="t-anatomia" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Tres partes, separadas por puntos</h2>
+        <p class="text-muted">No está cifrado: está <em>codificado</em> en base64url y <em>firmado</em>. Cualquiera puede leerlo; solo quien tiene la clave puede fabricarlo.</p>
+      </div>
+      <div class="scrolly-grid">
+        <div class="panel">
+          <div class="card p-4 md:p-5">
+            <p id="anat-token" class="token mb-4"></p>
+            <div class="stage">
+              <div data-only="1" class="text-sm">
+                <p class="mb-2"><span class="c-hdr font-bold">Header</span> · qué algoritmo firmó y con qué clave.</p>
+                <p class="mb-2"><span class="c-pay font-bold">Payload</span> · las <em>claims</em>: quién eres y hasta cuándo vale.</p>
+                <p><span class="c-sig font-bold">Firma</span> · prueba de que nadie tocó las otras dos.</p>
+              </div>
+              <div data-only="2">
+                <p class="text-xs text-muted mb-1 font-mono">atob(<span class="c-hdr">parte1</span>) →</p>
+                <pre id="dec-header" class="code b-hdr"></pre>
+              </div>
+              <div data-only="3">
+                <p class="text-xs text-muted mb-1 font-mono">atob(<span class="c-pay">parte2</span>) →</p>
+                <pre id="dec-payload" class="code b-pay"></pre>
+              </div>
+              <div data-only="4">
+                <p class="text-xs text-muted mb-1 font-mono">parte3 = HMAC-SHA256(secreto, "parte1.parte2")</p>
+                <pre id="dec-sig" class="code b-sig"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="1">
+            <p class="eyebrow mb-2">Paso 1</p>
+            <h3 class="text-2xl font-bold mb-2">Cabe en una cabecera HTTP</h3>
+            <p class="text-muted">Tres cadenas de texto unidas con puntos: <code class="text-ink">header.payload.firma</code>. Al ser texto seguro para URL, viaja sin problema en <code class="text-ink">Authorization</code>.</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow mb-2">Paso 2 · <span class="c-hdr">Header</span></p>
+            <h3 class="text-2xl font-bold mb-2">Cómo se firmó</h3>
+            <p class="text-muted">Decodificar es reemplazar <code class="text-ink">-</code>→<code class="text-ink">+</code> y <code class="text-ink">_</code>→<code class="text-ink">/</code>, rellenar con <code class="text-ink">=</code> y aplicar <code class="text-ink">atob</code>. Aquí dice <code class="c-hdr">alg: HS256</code> y qué clave usar con <code class="c-hdr">kid</code>.</p>
+          </article>
+          <article class="step" data-step="3">
+            <p class="eyebrow mb-2">Paso 3 · <span class="c-pay">Payload</span></p>
+            <h3 class="text-2xl font-bold mb-2">Lo que el servidor afirma</h3>
+            <p class="text-muted"><code class="c-pay">sub</code> (sujeto), <code class="c-pay">iat</code> (emitido) y <code class="c-pay">exp</code> (expira), más lo que quieras añadir. Es legible por <strong class="text-ink">cualquiera</strong>: nunca pongas contraseñas ni datos sensibles.</p>
+          </article>
+          <article class="step" data-step="4">
+            <p class="eyebrow mb-2">Paso 4 · <span class="c-sig">Firma</span></p>
+            <h3 class="text-2xl font-bold mb-2">Lo único que no se puede falsificar</h3>
+            <p class="text-muted">No es JSON: son 32 bytes (256 bits) de un HMAC. Si cambias una sola letra del header o del payload, la firma que el servidor recalcula ya no coincide.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 2b · PROBADOR ============ -->
+    <section id="probador" class="px-4 md:px-8 py-10 max-w-6xl mx-auto" aria-labelledby="t-probador">
+      <div class="card p-5 md:p-8">
+        <p class="eyebrow mb-2">Pruébalo</p>
+        <h2 id="t-probador" class="text-2xl md:text-3xl font-extrabold mb-2">Decodifica y verifica en vivo</h2>
+        <p class="text-muted mb-5 max-w-2xl">Edita el token (cambia una letra del payload) o pega uno tuyo. Todo ocurre en tu navegador; nada se envía a ningún servidor.</p>
+        <label for="live-input" class="text-sm text-muted block mb-1">Token</label>
+        <textarea id="live-input" rows="4" spellcheck="false" class="w-full code token" style="white-space:pre-wrap"></textarea>
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <div><p class="text-xs text-muted mb-1 c-hdr font-bold">HEADER</p><pre id="live-header" class="code b-hdr min-h-24"></pre></div>
+          <div><p class="text-xs text-muted mb-1 c-pay font-bold">PAYLOAD</p><pre id="live-payload" class="code b-pay min-h-24"></pre></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 mt-4">
+          <label for="live-secret" class="text-sm text-muted">Secreto para verificar:</label>
+          <input id="live-secret" value="secreto-de-clase" spellcheck="false" class="code" style="padding:.4rem .6rem;min-width:12rem">
+          <span id="live-verdict" class="status" role="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3 · CONSTRUCCIÓN ============ -->
+    <section id="construccion" class="scrolly px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-construccion">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">Construcción</p>
+        <h2 id="t-construccion" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Cómo se fabrica un token, paso a paso</h2>
+        <p class="text-muted">Esto es exactamente lo que hace el microservicio de autenticación cuando un login es correcto. Los valores mostrados son reales, calculados en esta página.</p>
+      </div>
+      <div class="scrolly-grid">
+        <div class="panel">
+          <div class="card p-4 md:p-5">
+            <div class="stage" style="min-height:15.5rem">
+              <div data-only="1">
+                <p class="text-xs text-muted mb-1">1 · Se arma el JSON del header</p>
+                <pre id="b-hdr-json" class="code b-hdr"></pre>
+                <p class="text-xs text-muted mt-2"><code class="c-hdr">alg</code> algoritmo · <code class="c-hdr">typ</code> tipo de token · <code class="c-hdr">kid</code> identificador de la clave</p>
+              </div>
+              <div data-only="2" class="grid gap-3 text-sm">
+                <p class="text-xs text-muted">2 · <code class="c-hdr">alg</code> decide cómo se firma y cómo se verifica</p>
+                <div class="code b-hdr">
+                  <p class="font-bold c-hdr mb-1">HS256 · HMAC + SHA-256 · clave compartida</p>
+                  <p>firma = HMAC(<b>secreto</b>, header.payload)</p>
+                  <p class="text-muted">Quien firma y quien verifica comparten el <b>mismo</b> secreto. Simple y rápido; ideal si emisor y verificador son de confianza.</p>
+                </div>
+                <div class="code" style="opacity:.4">
+                  <p class="font-bold mb-1">RS256 · RSA + SHA-256 · clave pública/privada</p>
+                </div>
+              </div>
+              <div data-only="3" class="grid gap-3 text-sm">
+                <p class="text-xs text-muted">3 · La alternativa asimétrica</p>
+                <div class="code" style="opacity:.4">
+                  <p class="font-bold mb-1">HS256 · clave compartida</p>
+                </div>
+                <div class="code b-hdr">
+                  <p class="font-bold c-hdr mb-1">RS256 · RSA + SHA-256 · clave pública/privada</p>
+                  <p>firma = RSA(<b>clave privada</b>, hash(header.payload))</p>
+                  <p class="text-muted">Solo <code>auth-ms</code> guarda la clave <b>privada</b>. Los demás servicios verifican con la <b>pública</b> y no pueden emitir tokens. <code class="c-hdr">kid</code> indica cuál par usar al rotar claves.</p>
+                </div>
+              </div>
+              <div data-only="4">
+                <p class="text-xs text-muted mb-1">4 · Header → base64url</p>
+                <pre id="b-hdr-src" class="code b-hdr mb-2"></pre>
+                <p class="text-center text-muted text-lg">↓ base64url</p>
+                <pre id="b-hdr-b64" class="code b-hdr mt-2 c-hdr"></pre>
+              </div>
+              <div data-only="5">
+                <p class="text-xs text-muted mb-1">5 · Payload (claims) → base64url</p>
+                <pre id="b-pay-src" class="code b-pay mb-2"></pre>
+                <p class="text-center text-muted text-lg">↓ base64url</p>
+                <pre id="b-pay-b64" class="code b-pay mt-2 c-pay"></pre>
+              </div>
+              <div data-only="6">
+                <p class="text-xs text-muted mb-1">6 · Se firma <code>header.payload</code> con el secreto</p>
+                <pre id="b-sig-f" class="code b-sig mb-2"></pre>
+                <p class="text-xs text-muted mb-1">Resultado: los tres textos unidos con puntos</p>
+                <p id="b-final" class="token code"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="1">
+            <p class="eyebrow mb-2">Paso 1 · <span class="c-hdr">Header</span></p>
+            <h3 class="text-2xl font-bold mb-2">Empieza con un JSON pequeño</h3>
+            <p class="text-muted">Declara el algoritmo (<code class="text-ink">alg</code>), el tipo (<code class="text-ink">typ: "JWT"</code>) y, opcionalmente, qué clave se usó (<code class="text-ink">kid</code>).</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow mb-2">Paso 2 · Algoritmo</p>
+            <h3 class="text-2xl font-bold mb-2">HS256: un secreto compartido</h3>
+            <p class="text-muted">Es la opción más simple. El servidor que verifica necesita el mismo secreto con el que se firmó, así que cualquiera que pueda verificar también podría emitir.</p>
+          </article>
+          <article class="step" data-step="3">
+            <p class="eyebrow mb-2">Paso 3 · Algoritmo</p>
+            <h3 class="text-2xl font-bold mb-2">RS256: privada firma, pública verifica</h3>
+            <p class="text-muted">Con microservicios conviene separar poderes: solo el servicio de autenticación emite; los demás únicamente comprueban con la clave pública.</p>
+          </article>
+          <article class="step" data-step="4">
+            <p class="eyebrow mb-2">Paso 4 · <span class="c-hdr">Header</span></p>
+            <h3 class="text-2xl font-bold mb-2">Se codifica en base64url</h3>
+            <p class="text-muted">Los bytes del JSON pasan a un alfabeto seguro para URL (<code class="text-ink">A–Z a–z 0–9 - _</code>, sin <code class="text-ink">=</code>). Es reversible: no protege nada, solo transporta.</p>
+          </article>
+          <article class="step" data-step="5">
+            <p class="eyebrow mb-2">Paso 5 · <span class="c-pay">Payload</span></p>
+            <h3 class="text-2xl font-bold mb-2">Las claims: sub, iat y exp</h3>
+            <p class="text-muted"><code class="text-ink">sub</code> identifica al usuario, <code class="text-ink">iat</code> es cuándo se emitió y <code class="text-ink">exp</code> cuándo deja de valer (segundos Unix). Se codifica igual que el header.</p>
+          </article>
+          <article class="step" data-step="6">
+            <p class="eyebrow mb-2">Paso 6 · <span class="c-sig">Firma</span></p>
+            <h3 class="text-2xl font-bold mb-2">Se sella todo y se entrega</h3>
+            <p class="text-muted">Se calcula el HMAC sobre <code class="text-ink">header.payload</code> ya codificados y se agrega como tercera parte. Ese texto es el token que recibe el cliente.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 4 · VIAJE POR LA API ============ -->
+    <section id="viaje" class="scrolly px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-viaje">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">El viaje</p>
+        <h2 id="t-viaje" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Un token recorre una API de microservicios</h2>
+        <p class="text-muted">Mismo esquema que el curso: un servicio de autenticación (<code class="text-ink">auth-ms</code>) y otro de datos (<code class="text-ink">libros-ms</code>). Los datos de ejemplo son ficticios.</p>
+      </div>
+      <div class="scrolly-grid">
+        <div class="panel">
+          <div class="card p-3 md:p-4">
+            <svg id="journey" viewBox="0 0 640 340" role="img" aria-label="Diagrama: el cliente obtiene un token de auth-ms y lo presenta a libros-ms" class="w-full h-auto block">
+              <line class="edge" x1="170" y1="145" x2="460" y2="60"/>
+              <line class="edge" x1="170" y1="175" x2="460" y2="280"/>
+              <g class="node" id="n-client"><rect x="30" y="125" width="140" height="70" rx="12"/><text x="100" y="155" text-anchor="middle">Cliente</text><text class="sub" id="client-sub" x="100" y="177" text-anchor="middle">navegador / app</text></g>
+              <g class="node" id="n-auth"><rect x="460" y="20" width="150" height="70" rx="12"/><text x="535" y="50" text-anchor="middle">auth-ms</text><text class="sub" id="auth-sub" x="535" y="72" text-anchor="middle">emite tokens</text></g>
+              <g class="node" id="n-libros"><rect x="460" y="250" width="150" height="70" rx="12"/><text x="535" y="280" text-anchor="middle">libros-ms</text><text class="sub" id="libros-sub" x="535" y="302" text-anchor="middle">datos protegidos</text></g>
+              <g class="wallet packet token-packet" id="wallet"><rect x="45" y="207" width="110" height="24" rx="6"/><text x="100" y="223" text-anchor="middle">eyJhbGci…</text></g>
+              <g class="packet" id="packet" style="opacity:0"><rect x="-62" y="-13" width="124" height="26" rx="7"/><text id="packet-label" x="0" y="4" text-anchor="middle"></text></g>
+            </svg>
+            <div class="stage mt-2" style="min-height:8.6rem">
+              <div data-only="1"><pre class="code text-xs"><b>POST</b> /login HTTP/1.1
+Content-Type: application/json
+
+{"email": "ana@correo.mx", "password": "••••••••"}</pre></div>
+              <div data-only="2"><pre class="code text-xs"><span class="c-dot">auth-ms:</span>
+1. busca al usuario y compara el hash de la contraseña  ✓
+2. arma el payload  {sub, iat, exp}
+3. firma  header.payload  con su clave  →  JWT</pre></div>
+              <div data-only="3"><pre class="code text-xs">HTTP/1.1 <span class="status s200">200 OK</span>
+
+{"access_token": "<span class="c-hdr">eyJhbGciOi…</span><span class="c-pay">.eyJzdWIiOi…</span><span class="c-sig">.SflKxw…</span>"}</pre></div>
+              <div data-only="4"><pre class="code text-xs"><span class="c-dot">cliente:</span> guarda el token
+- en memoria (más seguro, se pierde al recargar)
+- o en almacenamiento del navegador / app
+El servidor <b>no</b> guarda nada de la sesión.</pre></div>
+              <div data-only="5"><pre class="code text-xs"><span class="http-line"><b>GET</b> /libros HTTP/1.1</span><span class="http-line">Host: libros.ejemplo.mx</span><span class="http-line hl">Authorization: Bearer eyJhbGciOi…SflKxw</span><span class="http-line">Accept: application/json</span></pre></div>
+              <div data-only="6">
+                <ul class="code text-xs grid gap-1" id="verify-list">
+                  <li class="check-row pending"><span class="mark">·</span><span>Recalcula la firma con la clave y compara</span></li>
+                  <li class="check-row pending"><span class="mark">·</span><span>Comprueba <code>exp</code> &gt; ahora</span></li>
+                  <li class="check-row pending"><span class="mark">·</span><span>Lee <code>sub</code> y decide qué puede ver</span></li>
+                </ul>
+              </div>
+              <div data-only="7"><pre class="code text-xs">HTTP/1.1 <span class="status s200">200 OK</span>
+
+[{"id": 1, "titulo": "Cien años de soledad"}, …]</pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="1">
+            <p class="eyebrow mb-2">Paso 1</p>
+            <h3 class="text-2xl font-bold mb-2">El cliente pide entrar</h3>
+            <p class="text-muted">Envía sus credenciales a <code class="text-ink">POST /login</code>. Es la <em>única</em> vez que viaja la contraseña.</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow mb-2">Paso 2</p>
+            <h3 class="text-2xl font-bold mb-2">auth-ms emite el token</h3>
+            <p class="text-muted">Valida las credenciales, arma el payload y lo firma. Aquí ocurre todo lo que viste en «Construcción».</p>
+          </article>
+          <article class="step" data-step="3">
+            <p class="eyebrow mb-2">Paso 3</p>
+            <h3 class="text-2xl font-bold mb-2">Responde con el JWT</h3>
+            <p class="text-muted">El cuerpo de la respuesta lleva el token. Desde aquí, la contraseña ya no se vuelve a enviar.</p>
+          </article>
+          <article class="step" data-step="4">
+            <p class="eyebrow mb-2">Paso 4</p>
+            <h3 class="text-2xl font-bold mb-2">El cliente lo guarda</h3>
+            <p class="text-muted">Es su «pase». Quien lo tenga, <em>es</em> ese usuario mientras no expire: por eso hay que cuidarlo.</p>
+          </article>
+          <article class="step" data-step="5">
+            <p class="eyebrow mb-2">Paso 5</p>
+            <h3 class="text-2xl font-bold mb-2">Lo presenta en cada petición</h3>
+            <p class="text-muted">Va en la cabecera <code class="text-ink">Authorization: Bearer &lt;jwt&gt;</code> (resaltada). «Bearer» significa <em>portador</em>: vale quien lo porta.</p>
+          </article>
+          <article class="step" data-step="6">
+            <p class="eyebrow mb-2">Paso 6</p>
+            <h3 class="text-2xl font-bold mb-2">libros-ms verifica, sin llamar a nadie</h3>
+            <p class="text-muted">Comprueba firma y expiración por su cuenta. Por eso los JWT escalan bien entre microservicios: no hay consulta a una base de sesiones.</p>
+          </article>
+          <article class="step" data-step="7">
+            <p class="eyebrow mb-2">Paso 7</p>
+            <h3 class="text-2xl font-bold mb-2">Responde 200 con los datos</h3>
+            <p class="text-muted">Si algo falla (firma inválida, token vencido) la respuesta es <code class="text-ink">401 Unauthorized</code>. Justo lo que veremos a continuación.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 5 · EXPIRACIÓN ============ -->
+    <section id="expiracion" class="scrolly px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-exp">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">Expiración</p>
+        <h2 id="t-exp" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Todo token caduca</h2>
+        <p class="text-muted">Para la demo este token dura solo 30 segundos. En producción suelen ser de 5 a 15 minutos.</p>
+      </div>
+      <div class="scrolly-grid">
+        <div class="panel">
+          <div class="card p-4 md:p-5">
+            <div class="flex items-center gap-5 flex-wrap">
+              <div id="exp-ring" class="ring" role="timer" aria-live="off">
+                <div><div id="exp-secs" class="text-4xl font-extrabold font-mono leading-none">30</div><div class="text-xs text-muted mt-1">segundos</div></div>
+              </div>
+              <pre id="exp-payload" class="code b-pay flex-1 min-w-[13rem] text-xs"></pre>
+            </div>
+            <div data-from="2" class="flex flex-wrap items-center gap-3 mt-4">
+              <button id="exp-req" class="btn primary" type="button">GET /libros con este token</button>
+              <span id="exp-result" class="text-sm" role="status" aria-live="polite"></span>
+            </div>
+            <ul id="exp-seq" class="seq code text-xs grid gap-1 mt-4" data-from="3" aria-live="polite"></ul>
+            <div data-from="3" class="flex flex-wrap gap-3 mt-4">
+              <button id="exp-skip" class="btn" type="button">Saltar al vencimiento</button>
+              <button id="exp-reset" class="btn" type="button">Emitir otro token</button>
+            </div>
+          </div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="1">
+            <p class="eyebrow mb-2">Paso 1</p>
+            <h3 class="text-2xl font-bold mb-2">La claim <code>exp</code> es una fecha límite</h3>
+            <p class="text-muted">Es un instante en segundos Unix. El contador de la derecha resta ese valor al reloj real de tu navegador, ahora mismo.</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow mb-2">Paso 2</p>
+            <h3 class="text-2xl font-bold mb-2">Se revisa en cada petición</h3>
+            <p class="text-muted">Prueba a llamar a la API mientras corre el tiempo: responde <span class="status s200">200</span>. La firma sigue siendo válida; lo que cambia es el reloj.</p>
+          </article>
+          <article class="step" data-step="3">
+            <p class="eyebrow mb-2">Paso 3</p>
+            <h3 class="text-2xl font-bold mb-2">Al llegar a 0: 401</h3>
+            <p class="text-muted">El token no fue alterado, pero ya no vale. El servidor lo rechaza con <span class="status s401">401 Unauthorized</span> y el cliente debe conseguir otro. Espera el cero o usa «Saltar».</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6 · REFRESCO ============ -->
+    <section id="refresco" class="scrolly px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-ref">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">Refresco</p>
+        <h2 id="t-ref" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Seguir conectado sin volver a poner la contraseña</h2>
+        <p class="text-muted">Un token corto limita el daño si se filtra; pero pedir la contraseña cada 15 minutos sería insoportable. Solución: renovar la sesión. Es el mismo patrón de <code class="text-ink">POST /session/extend</code> del Ejercicio 06, aquí con un par access/refresh.</p>
+      </div>
+      <div class="scrolly-grid">
+        <div class="panel">
+          <div class="card p-4 md:p-5 grid gap-4">
+            <div>
+              <div class="flex justify-between text-xs mb-1"><span><b class="c-pay">access token</b> · 15 min · viaja en cada petición</span><span id="life-a-txt" class="font-mono text-muted"></span></div>
+              <div class="lifebar"><i id="life-a" style="width:100%;background:var(--color-pay);transition:width 1.4s linear, background .4s"></i></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1"><span><b class="c-sig">refresh / sesión</b> · 7 días · solo va a <code>/session/extend</code></span><span id="life-r-txt" class="font-mono text-muted"></span></div>
+              <div class="lifebar"><i id="life-r" style="width:100%;background:var(--color-sig)"></i></div>
+            </div>
+            <ul class="seq code text-xs grid gap-1" id="ref-seq">
+              <li data-from="1"><span class="c-dot">1.</span> Cliente usa el access token en cada llamada → <span class="status s200">200</span></li>
+              <li data-from="2"><span class="c-dot">2.</span> El access token vence → <span class="status s401">401</span> <span class="c-dot">(el cliente lo detecta)</span></li>
+              <li data-from="3"><span class="c-dot">3.</span> <b>POST /session/extend</b> con el refresh → nuevo access token</li>
+              <li data-from="4"><span class="c-dot">4.</span> Repite la petición original con el token nuevo → <span class="status s200">200</span> · el usuario ni se enteró</li>
+            </ul>
+            <div data-from="3" class="grid sm:grid-cols-2 gap-3">
+              <div><p class="text-xs text-muted mb-1">token anterior</p><pre id="ref-old" class="code b-pay text-xs" style="opacity:.6"></pre></div>
+              <div><p class="text-xs text-muted mb-1">token nuevo</p><pre id="ref-new" class="code b-pay text-xs"></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="1">
+            <p class="eyebrow mb-2">Paso 1</p>
+            <h3 class="text-2xl font-bold mb-2">Dos duraciones distintas</h3>
+            <p class="text-muted">El <span class="c-pay font-bold">access token</span> es corto y se envía por todos lados. La <span class="c-sig font-bold">sesión larga</span> solo se usa en un endpoint concreto, así casi nunca se expone.</p>
+          </article>
+          <article class="step" data-step="2">
+            <p class="eyebrow mb-2">Paso 2</p>
+            <h3 class="text-2xl font-bold mb-2">El access token se agota</h3>
+            <p class="text-muted">La API contesta 401. En lugar de mandar al usuario al login, el cliente intenta renovar en silencio.</p>
+          </article>
+          <article class="step" data-step="3">
+            <p class="eyebrow mb-2">Paso 3</p>
+            <h3 class="text-2xl font-bold mb-2">Se extiende la sesión</h3>
+            <p class="text-muted">El servidor valida la sesión larga y firma un token con <code class="text-ink">iat</code> y <code class="text-ink">exp</code> nuevos. Fíjate: cambian los tiempos, no el <code class="text-ink">sub</code>.</p>
+          </article>
+          <article class="step" data-step="4">
+            <p class="eyebrow mb-2">Paso 4</p>
+            <h3 class="text-2xl font-bold mb-2">Todo sigue sin re-login</h3>
+            <p class="text-muted">Se reintenta la petición original y funciona. Si la sesión larga también venciera (o se revocara), <em>ahí sí</em> toca iniciar sesión otra vez.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 7 · SEGURIDAD ============ -->
+    <section id="seguridad" class="px-4 md:px-8 py-16 max-w-6xl mx-auto" aria-labelledby="t-seg">
+      <div class="max-w-2xl mb-10">
+        <p class="eyebrow mb-2">Seguridad</p>
+        <h2 id="t-seg" class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Lo que sale mal cuando se usa mal</h2>
+        <p class="text-muted">Un JWT es tan seguro como la verificación que hace el servidor.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4 mb-4">
+        <article class="card p-5">
+          <h3 class="font-bold text-lg mb-2"><code class="c-hdr">alg: "none"</code></h3>
+          <p class="text-muted text-sm mb-3">El estándar permite tokens «sin firma». Un atacante cambia el header y borra la firma; si el servidor obedece al header, acepta cualquier payload.</p>
+          <pre class="code text-xs mb-3"><span class="c-hdr">{"alg":"none","typ":"JWT"}</span>.<span class="c-pay">{"sub":"ana","role":"admin"}</span>.</pre>
+          <p class="text-sm"><b class="text-ok">Defensa:</b> el servidor define una lista de algoritmos permitidos y rechaza <code>none</code>.</p>
+        </article>
+        <article class="card p-5">
+          <h3 class="font-bold text-lg mb-2">Confusión de algoritmo</h3>
+          <p class="text-muted text-sm mb-3">El servidor espera <code>RS256</code> (verifica con la clave pública). El atacante manda <code>HS256</code> y firma usando <em>esa clave pública</em> —que es pública— como si fuera el secreto.</p>
+          <p class="text-sm"><b class="text-ok">Defensa:</b> el algoritmo lo fija el servidor según la clave que tiene; nunca se deduce del <code>alg</code> del token.</p>
+        </article>
+        <article class="card p-5">
+          <h3 class="font-bold text-lg mb-2">Legible, pero no modificable</h3>
+          <p class="text-muted text-sm mb-3">Cualquiera lee el payload, pero cambiarlo rompe la firma. Compruébalo:</p>
+          <p id="tamper-token" class="token code text-xs mb-3"></p>
+          <pre id="tamper-payload" class="code b-pay text-xs mb-3"></pre>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="tamper-go" class="btn primary" type="button">Cambiar role a «admin» sin re-firmar</button>
+            <button id="tamper-undo" class="btn" type="button">Restaurar</button>
+          </div>
+          <p class="mt-3 text-sm" id="tamper-verdict" role="status" aria-live="polite"></p>
+        </article>
+        <article class="card p-5">
+          <h3 class="font-bold text-lg mb-2">Sin HTTPS, cualquiera lo copia</h3>
+          <p class="text-muted text-sm mb-3">Un token <em>Bearer</em> vale para quien lo presente. Si viaja por HTTP plano, cualquiera en la red puede leerlo y reutilizarlo hasta que expire.</p>
+          <p class="text-sm"><b class="text-ok">Defensa:</b> TLS siempre, token en la cabecera <code>Authorization</code> (nunca en la URL, que queda en logs) y <code>exp</code> corto.</p>
+        </article>
+      </div>
+
+      <div class="card p-5 md:p-8 mt-10">
+        <div class="flex flex-wrap justify-between items-baseline gap-2 mb-4">
+          <h3 class="text-2xl font-extrabold">Checklist de un JWT bien usado</h3>
+          <span id="check-count" class="status s401" role="status" aria-live="polite">0 / 7</span>
+        </div>
+        <div class="checklist grid md:grid-cols-2 gap-x-6">
+          <label><input type="checkbox"><span>Verificar la <b>firma</b> en cada petición, en el servidor.</span></label>
+          <label><input type="checkbox"><span>Fijar la <b>lista de algoritmos</b> permitidos y rechazar <code>none</code>.</span></label>
+          <label><input type="checkbox"><span>Validar <code>exp</code> (y <code>iss</code>/<code>aud</code> si aplica).</span></label>
+          <label><input type="checkbox"><span><b>Access token corto</b> (minutos) y renovación controlada.</span></label>
+          <label><input type="checkbox"><span>Secreto largo y aleatorio, o clave privada fuera del repositorio.</span></label>
+          <label><input type="checkbox"><span><b>Nada sensible</b> en el payload: es legible por cualquiera.</span></label>
+          <label><input type="checkbox"><span>Solo por <b>HTTPS</b>, en la cabecera <code>Authorization</code>.</span></label>
+        </div>
+        <p id="check-done" class="mt-4 text-ok font-bold" hidden>¡Listo! Ya sabes usar un JWT sin regalar la llave.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="px-4 md:px-8 py-14 text-center text-muted text-sm">
+    <p class="mb-2">Actividad 07 · Integración de Aplicaciones Computacionales</p>
+    <a href="../../" class="text-sig">← Volver al portafolio</a>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

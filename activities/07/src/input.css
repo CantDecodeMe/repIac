@@ -1,0 +1,204 @@
+/*
+  Fuente de estilos de la Actividad 07 (animación didáctica de JWT).
+
+  Reconstruir ../tailwind.css con el binario standalone de Tailwind v4
+  (no hace falta npm), desde activities/07/:
+
+    tailwindcss -i src/input.css -o tailwind.css --minify
+
+  El resultado (tailwind.css) se commitea para que la página funcione
+  sin ningún paso de build al servirla.
+*/
+@import "tailwindcss" source(none);
+@source "../index.html";
+@source "../app.js";
+
+@theme {
+  --color-bg: #0a0f1e;
+  --color-surface: #111831;
+  --color-surface-2: #172042;
+  --color-line: #263056;
+  --color-ink: #e8ecff;
+  --color-muted: #9aa6d1;
+  --color-hdr: #fb7185;   /* header   */
+  --color-pay: #c084fc;   /* payload  */
+  --color-sig: #22d3ee;   /* firma    */
+  --color-ok: #4ade80;
+  --color-bad: #f87171;
+  --color-warn: #fbbf24;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, kbd { font-family: var(--font-mono); }
+  :focus-visible { outline: 2px solid var(--color-sig); outline-offset: 2px; }
+}
+
+/* ---------- Barra de progreso superior ---------- */
+#progress {
+  position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 50;
+  background: linear-gradient(90deg, var(--color-hdr), var(--color-pay), var(--color-sig));
+  transform-origin: 0 50%; transform: scaleX(0);
+}
+
+/* ---------- Colores de las tres partes ---------- */
+.c-hdr { color: var(--color-hdr); }
+.c-pay { color: var(--color-pay); }
+.c-sig { color: var(--color-sig); }
+.c-dot { color: var(--color-muted); }
+.b-hdr { border-color: color-mix(in srgb, var(--color-hdr) 55%, transparent); }
+.b-pay { border-color: color-mix(in srgb, var(--color-pay) 55%, transparent); }
+.b-sig { border-color: color-mix(in srgb, var(--color-sig) 55%, transparent); }
+
+/* ---------- Token ---------- */
+.token {
+  font-family: var(--font-mono);
+  font-size: clamp(0.78rem, 2.2vw, 1.05rem);
+  line-height: 1.7;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.token .part { transition: opacity .3s, filter .3s; }
+.token[data-focus] .part { opacity: .28; }
+.token[data-focus="hdr"] .part-hdr,
+.token[data-focus="pay"] .part-pay,
+.token[data-focus="sig"] .part-sig { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+.token .caret {
+  display: inline-block; width: .55ch; height: 1.1em; vertical-align: -0.2em;
+  background: var(--color-ink); animation: blink 1s steps(1) infinite;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+.code {
+  background: #070b17;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: .75rem .9rem;
+  font-size: .82rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.eyebrow {
+  font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--color-sig); font-weight: 700;
+}
+
+/* ---------- Scrollytelling genérico ---------- */
+.scrolly-grid { display: grid; gap: 1.5rem; }
+.scrolly .panel {
+  position: sticky; top: .75rem; z-index: 5;
+  align-self: start;
+}
+.scrolly .step {
+  min-height: 62vh;
+  display: flex; flex-direction: column; justify-content: center;
+  opacity: .35; transition: opacity .4s;
+}
+.scrolly .step.is-active { opacity: 1; }
+.scrolly .step:last-child { min-height: 70vh; }
+
+@media (min-width: 900px) {
+  .scrolly-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 3rem; }
+  .scrolly .panel { top: 6vh; grid-column: 2; grid-row: 1; }
+  .scrolly .steps { grid-column: 1; grid-row: 1; }
+  .scrolly .step { min-height: 80vh; }
+}
+@media (max-width: 899px) {
+  .scrolly .panel { padding-bottom: .75rem; background: linear-gradient(var(--color-bg) 88%, transparent); }
+  .scrolly .step { min-height: 55vh; justify-content: flex-start; padding-top: 1.5rem; }
+}
+
+/* Elementos que aparecen según el paso activo (los alterna app.js) */
+[data-from], [data-only] {
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .45s, transform .45s;
+}
+[data-from].on, [data-only].on { opacity: 1; transform: none; pointer-events: auto; }
+
+/* Escenario donde las tarjetas se apilan y se cruzan sin mover el layout */
+.stage { display: grid; }
+.stage > * { grid-area: 1 / 1; }
+
+/* ---------- Diagrama de la API ---------- */
+.node rect { fill: var(--color-surface-2); stroke: var(--color-line); stroke-width: 1.5; transition: stroke .3s, filter .3s; }
+.node.hot rect { stroke: var(--color-sig); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-sig) 60%, transparent)); }
+.node text { fill: var(--color-ink); font-size: 14px; font-weight: 700; }
+.node .sub { fill: var(--color-muted); font-size: 10.5px; font-weight: 500; font-family: var(--font-mono); }
+.edge { stroke: var(--color-line); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.packet rect { fill: var(--color-surface); stroke: var(--color-warn); stroke-width: 1.5; }
+.packet text { fill: var(--color-warn); font-size: 10.5px; font-weight: 700; font-family: var(--font-mono); }
+.packet.token-packet rect { stroke: var(--color-pay); }
+.packet.token-packet text { fill: var(--color-pay); }
+.packet.ok rect { stroke: var(--color-ok); }
+.packet.ok text { fill: var(--color-ok); }
+.wallet { opacity: 0; transition: opacity .4s; }
+.wallet.on { opacity: 1; }
+
+.http-line { display: block; padding: 0 .35rem; margin: 0 -.35rem; border-radius: 4px; }
+.http-line.hl { background: color-mix(in srgb, var(--color-warn) 20%, transparent); color: var(--color-warn); outline: 1px solid color-mix(in srgb, var(--color-warn) 60%, transparent); }
+
+.check-row { display: flex; gap: .6rem; align-items: baseline; }
+.check-row .mark { width: 1.1rem; flex: none; text-align: center; font-weight: 800; }
+.check-row.pending { color: var(--color-muted); }
+.check-row.pass .mark { color: var(--color-ok); }
+.check-row.fail .mark { color: var(--color-bad); }
+.check-row.fail { color: var(--color-bad); }
+
+/* ---------- Contador de expiración ---------- */
+.ring { --p: 1; --c: var(--color-ok); width: 9.5rem; aspect-ratio: 1; border-radius: 50%;
+  background: conic-gradient(var(--c) calc(var(--p) * 360deg), var(--color-line) 0);
+  display: grid; place-items: center; transition: --c .3s; }
+.ring::before { content: ""; grid-area: 1/1; width: 84%; aspect-ratio: 1; border-radius: 50%; background: var(--color-surface); }
+.ring > * { grid-area: 1/1; z-index: 1; text-align: center; }
+.ring.warn { --c: var(--color-warn); }
+.ring.dead { --c: var(--color-bad); }
+
+.status { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 800; font-family: var(--font-mono); }
+.status.s200 { background: color-mix(in srgb, var(--color-ok) 20%, transparent); color: var(--color-ok); }
+.status.s401 { background: color-mix(in srgb, var(--color-bad) 20%, transparent); color: var(--color-bad); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .5rem .9rem; border-radius: 10px; font-weight: 700; font-size: .85rem;
+  background: var(--color-surface-2); border: 1px solid var(--color-line); color: var(--color-ink);
+  cursor: pointer; transition: border-color .2s, background .2s;
+}
+.btn:hover { border-color: var(--color-sig); }
+.btn.primary { background: color-mix(in srgb, var(--color-sig) 22%, var(--color-surface-2)); border-color: var(--color-sig); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.lifebar { height: .6rem; border-radius: 99px; background: var(--color-line); overflow: hidden; }
+.lifebar > i { display: block; height: 100%; border-radius: inherit; }
+
+.seq li { opacity: 0; transform: translateX(-6px); transition: opacity .35s, transform .35s; }
+.seq li.on { opacity: 1; transform: none; }
+
+/* ---------- Checklist ---------- */
+.checklist label { display: flex; gap: .7rem; align-items: flex-start; padding: .6rem .8rem; border-radius: 10px; cursor: pointer; }
+.checklist label:hover { background: var(--color-surface-2); }
+.checklist input { accent-color: var(--color-ok); margin-top: .3rem; width: 1.05rem; height: 1.05rem; flex: none; }
+.checklist input:checked + span { color: var(--color-muted); text-decoration: line-through; text-decoration-color: var(--color-ok); }
+
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-sig) 50%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.pulse { animation: pulse-ring 1.6s ease-out infinite; }
+@keyframes float-y { 50% { transform: translateY(-6px); } }
+.float { animation: float-y 3.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
