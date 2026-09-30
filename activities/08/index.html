@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 08 · Proteger microservicios con JWT</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision dl { margin: 0; font-size: 0.78rem; }
+    .decision dt { float: left; clear: left; width: 92px; color: var(--pink); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding-top: 3px; }
+    .decision dd { margin: 0 0 7px 100px; color: var(--muted); }
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+    pre.terminal { white-space: pre-wrap; word-break: break-all; font-size: 0.66rem; line-height: 1.5; }
+    @media (max-width: 650px) { .indice { columns: 1; } .decision dt { float: none; width: auto; } .decision dd { margin-left: 0; } }
+    @media print { .indice { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 08 · Ejercicio guiado</p>
+      <h1>Escribir exige un pase,<br>leer sigue siendo <em>libre.</em></h1>
+      <p class="report-lead"><code>auth-ms</code> ahora emite un JWT firmado con RS256 al iniciar sesión, y <code>libros-ms</code> lo exige como <code>Authorization: Bearer</code> en <code>POST</code>, <code>PUT</code>, <code>PATCH</code> y <code>DELETE</code> sobre <code>/books</code>, validándolo de forma local con la clave pública. El catálogo (<code>GET</code>) sigue abierto. El cliente Python manda el token, lo renueva antes de que venza y muestra en la terminal cada petición con su JWT y los encabezados decodificados.</p>
+      <div class="header-tags">
+        <span>JWT · RS256</span><span>Flask</span><span>PyJWT</span><span>Clave pública/privada</span><span>Bearer</span><span>Python/Tkinter</span><span>Raspberry Pi · Cloudflare Tunnel</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y alcance</a></li>
+        <li><a href="#s2">02 · Arquitectura</a></li>
+        <li><a href="#s3">03 · Cómo se relaciona con ej04/05/06</a></li>
+        <li><a href="#s4">04 · Decisiones de ingeniería</a></li>
+        <li><a href="#s5">05 · Bitácora de pruebas</a></li>
+        <li><a href="#s6">06 · Evidencia (terminal)</a></li>
+        <li><a href="#s7">07 · Problemas encontrados y soluciones</a></li>
+        <li><a href="#s8">08 · Conclusiones y pendientes</a></li>
+        <li><a href="#s9">09 · Uso de IA y prompts</a></li>
+        <li><a href="#s10">10 · Reflexión personal</a></li>
+      </ul>
+    </header>
+
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>El planteamiento pide proteger las operaciones de escritura del servicio de libros exigiendo un JWT válido emitido por el servicio de login. Se mantienen públicas las lecturas (<code>GET /books</code> y <code>GET /books/{isbn}</code>); se protegen crear, actualizar y eliminar con <code>Authorization: Bearer &lt;token&gt;</code>. Además: modificar la aplicación Python para que maneje JWT contra los endpoints que ya usaba, y mostrar en su terminal un log de las peticiones con JWT junto con los encabezados de los tokens.</p>
+        <p><strong>Dentro del alcance:</strong> emisión en <code>auth-ms</code>, validación en <code>libros-ms</code>, cambios del cliente Python, pruebas automatizadas y despliegue en el mismo Raspberry Pi.</p>
+        <p><strong>Fuera del alcance:</strong> revocación de tokens antes de su expiración, roles/permisos por usuario dentro del JWT y rotación automática de claves (ver sección 08).</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <pre><code>cliente Python ──POST /login──────────────▶ auth-ms  (clave PRIVADA)
+      ▲                                        │ firma JWT RS256
+      │◀──────── {token, expires_in, ...} ────┘
+      │
+      ├──GET /books ─────────────────────────▶ libros-ms  (público, sin token)
+      │
+      └──POST/PUT/PATCH/DELETE /books
+         Authorization: Bearer &lt;jwt&gt; ────────▶ libros-ms  (clave PÚBLICA)
+                                                  verifica firma, iss, aud, exp
+                                                  ok → 2xx · falla → 401 + WWW-Authenticate</code></pre>
+        <p>El JWT lleva el header <code>{"alg":"RS256","typ":"JWT","kid":"auth-ms-2026-1"}</code> y los claims <code>iss=auth-ms</code>, <code>aud=libros-ms</code>, <code>sub</code> (id del usuario), <code>email</code>, <code>iat</code>, <code>exp</code> (15 minutos por defecto) y <code>jti</code>. Cada servicio monta solo la mitad de la clave que le corresponde, como volumen de solo lectura: <code>auth-ms</code> la privada, <code>libros-ms</code> la pública.</p>
+        <p>Todo corre en un Raspberry Pi con Docker, junto a la base del monolito. Los puertos locales (5011, 5012) solo escuchan en <code>127.0.0.1</code>; la salida a Internet es un Cloudflare Tunnel sobre <code>maxthecoder.online</code>, que alcanza a los contenedores por la red <code>services</code> usando su nombre y su puerto interno.</p>
+      </div>
+    </section>
+
+    <section id="s3">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Cómo se relaciona con ej04, ej05 y ej06</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Componente</th><th>Origen</th><th>Contenedor / puerto</th><th>Qué cambia</th></tr></thead>
+            <tbody>
+              <tr><td>auth-ms</td><td>copia de ej05</td><td><code>auth-ms-jwt</code> · 5012</td><td><code>/login</code> y <code>/session/extend</code> devuelven <code>token</code>, <code>token_type</code>, <code>expires_in</code>, <code>expires_at</code>; la cookie de sesión se conserva</td></tr>
+              <tr><td>libros-ms</td><td>copia de ej04</td><td><code>libros-ms-jwt</code> · 5011</td><td>Decorador <code>@requiere_jwt</code> en las cuatro rutas de escritura</td></tr>
+              <tr><td>Cliente Python</td><td>copia de ej06</td><td>—</td><td>Manda el Bearer, renueva el token, guarda el JWT en la sesión y registra las peticiones</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Se trabajó en copias dentro de <code>deploy-iac/ejercicio-07/</code> para no alterar los servicios ya desplegados y entregados de los ejercicios 04, 05 y 06. Los roles de base de datos son los mismos (<code>libros_ms_svc</code>, <code>auth_ms_svc</code>): JWT no toca la base.</p>
+      </div>
+    </section>
+
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+
+        <div class="decision">
+          <h3>RS256 con par de claves, no HS256 con secreto compartido</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Que <code>libros-ms</code> verifique tokens sin poder fabricarlos.</dd>
+            <dt>Decisión</dt><dd>Firma asimétrica: <code>auth-ms</code> monta solo <code>jwt_private.pem</code>; <code>libros-ms</code> solo <code>jwt_public.pem</code>. El script <code>gen-claves.sh</code> genera el par y <code>claves/</code> queda fuera de git.</dd>
+            <dt>Justificación</dt><dd>Con un secreto compartido, comprometer el servicio de libros permitiría emitir tokens válidos para cualquiera.</dd>
+            <dt>Ventajas</dt><dd>La superficie de ataque del servicio de recursos se reduce a "puede leer, no puede firmar".</dd>
+            <dt>Limitaciones</dt><dd>Hay que generar y montar claves; el <code>kid</code> queda preparado para rotación, pero no se automatizó.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Validación local en <code>libros-ms</code>, sin llamar a <code>auth-ms</code></h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Decidir en cada escritura si el token es válido.</dd>
+            <dt>Decisión</dt><dd>Verificar con PyJWT: firma, <code>iss</code>, <code>aud</code> y que existan <code>exp</code>, <code>iat</code> y <code>sub</code>. Los algoritmos aceptados se fijan en <code>["RS256"]</code>.</dd>
+            <dt>Justificación</dt><dd>Sin llamadas entre servicios no hay acoplamiento de disponibilidad; fijar el algoritmo evita <code>alg: none</code> y la confusión RS256/HS256.</dd>
+            <dt>Ventajas</dt><dd>Menor latencia y un punto de falla menos.</dd>
+            <dt>Limitaciones</dt><dd>Un token robado sirve hasta que vence (15 min): no hay revocación inmediata.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>La cookie de sesión convive con el JWT</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>No romper el cliente del ejercicio 06 ni su evidencia.</dd>
+            <dt>Decisión</dt><dd>La cookie <code>auth_sid</code> sigue siendo la sesión larga; el JWT es la credencial corta para <code>libros-ms</code>. Renovar el JWT es <code>POST /session/extend</code>, que exige la cookie.</dd>
+            <dt>Justificación</dt><dd>Un token de 15 minutos sin forma de renovarlo obligaría a iniciar sesión constantemente.</dd>
+            <dt>Ventajas</dt><dd>Renovación transparente para el usuario.</dd>
+            <dt>Limitaciones</dt><dd>Hay dos mecanismos de sesión en <code>auth-ms</code>.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>El cliente reintenta una vez ante un 401</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Que un token vencido o recién invalidado no rompa la operación del usuario.</dd>
+            <dt>Decisión</dt><dd>Antes de cada escritura pide un JWT vigente (renueva si quedan menos de 30 s). Si aun así llega un 401, fuerza una renovación y reintenta <em>una</em> vez; si falla, muestra "Sesión vencida" y regresa al login.</dd>
+            <dt>Justificación</dt><dd>Un solo reintento evita bucles; el error final es comprensible.</dd>
+            <dt>Ventajas</dt><dd>Verificado contra los servicios reales: un token corrupto provoca 401 → renovación → 201.</dd>
+            <dt>Limitaciones</dt><dd>Un token válido pero sin permiso también daría 401 y gastaría un reintento inútil (no hay roles todavía).</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Las rutas se quedan en <code>/books</code></h3>
+          <dl>
+            <dt>Necesidad</dt><dd>El planteamiento habla de <code>/api/books</code>; los servicios reales exponen <code>/books</code>.</dd>
+            <dt>Decisión</dt><dd>Mantener <code>/books</code>.</dd>
+            <dt>Justificación</dt><dd>Renombrar rompería al cliente Electron y a los clientes existentes por un cambio solo de forma.</dd>
+            <dt>Ventajas</dt><dd>Cero cambios de contrato en las lecturas.</dd>
+            <dt>Limitaciones</dt><dd>La ruta difiere del texto literal del planteamiento; se documenta aquí.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Log de la app: encabezados visibles, firma truncada</h3>
+          <dl>
+            <dt>Necesidad</dt><dd>Mostrar en la terminal las peticiones con JWT y los encabezados de los tokens.</dd>
+            <dt>Decisión</dt><dd>Un único punto (<code>http_utils._peticion</code>) registra método, URL, encabezados enviados, header y claims decodificados (base64, sin verificar firma), tiempo restante y estado de la respuesta. La firma sale truncada salvo <code>JWT_LOG_COMPLETO=1</code>.</dd>
+            <dt>Justificación</dt><dd>Es evidencia útil sin dejar credenciales completas en un log copiable; la cookie y las contraseñas nunca se imprimen.</dd>
+            <dt>Ventajas</dt><dd>Toda petición con Bearer queda registrada sin tocar cada pantalla.</dd>
+            <dt>Limitaciones</dt><dd>Los claims incluyen el correo del usuario.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section id="s5" class="page-break-before">
+      <div class="section-number">05</div>
+      <div>
+        <h2>Bitácora de pruebas</h2>
+        <p>Las genera <code>scripts/run-tests.sh</code> (Python de biblioteca estándar) contra los contenedores reales <code>auth-ms-jwt</code> y <code>libros-ms-jwt</code>; el usuario de prueba se registra y se verifica por el correo capturado en Mailpit. Resultado: <strong>todas en verde</strong>.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Prueba</th><th>Qué se hizo</th><th>Esperado</th><th>Resultado</th></tr></thead>
+            <tbody>
+              <tr><td>01</td><td>Lectura pública</td><td><code>GET /books</code> sin token</td><td>200</td><td>OK: el catálogo sigue siendo público</td></tr>
+<tr><td>02</td><td>Escritura sin token</td><td>POST, PUT, PATCH, DELETE sin <code>Authorization</code></td><td>401</td><td>OK ×4 · <code>WWW-Authenticate: Bearer realm="libros-ms"</code></td></tr>
+<tr><td>03</td><td>Token basura</td><td><code>abc.def.ghi</code> en las cuatro escrituras</td><td>401</td><td>OK ×4</td></tr>
+<tr><td>04</td><td>Firmado con otra clave</td><td>JWT RS256 válido en forma pero firmado con un par generado al vuelo</td><td>401</td><td>OK ×4 · la firma no verifica con la pública</td></tr>
+<tr><td>05</td><td><code>alg: none</code></td><td>Token sin firma con <code>alg=none</code></td><td>401</td><td>OK ×4 · el algoritmo está fijado a RS256</td></tr>
+<tr><td>06</td><td>Token expirado</td><td><code>exp</code> 60 s en el pasado</td><td>401</td><td>OK ×4</td></tr>
+<tr><td>07</td><td>Login emite JWT</td><td><code>POST /login</code> en auth-ms</td><td>200 + <code>token</code></td><td>OK: header <code>alg=RS256</code>, <code>token_type=Bearer</code></td></tr>
+<tr><td>08</td><td>Alta con JWT</td><td><code>POST /books</code> con Bearer</td><td>201</td><td>OK</td></tr>
+<tr><td>09</td><td>Lectura tras alta</td><td><code>GET /books/{isbn}</code> sin token</td><td>200</td><td>OK</td></tr>
+<tr><td>10</td><td>Actualización parcial</td><td><code>PATCH /books/{isbn}</code> con Bearer</td><td>200</td><td>OK</td></tr>
+<tr><td>11</td><td>Reemplazo total</td><td><code>PUT /books/{isbn}</code> con Bearer</td><td>200</td><td>OK (tras corregir el 500 de la sección 07)</td></tr>
+<tr><td>12</td><td>Eliminación</td><td><code>DELETE /books/{isbn}</code> con Bearer</td><td>204</td><td>OK</td></tr>
+<tr><td>13</td><td>Confirmación</td><td><code>GET /books/{isbn}</code> tras borrar</td><td>404</td><td>OK</td></tr>
+<tr><td>14</td><td>Aislamiento de claves</td><td><code>ls /run/claves</code> en cada contenedor</td><td>solo la suya</td><td>OK: libros-ms solo <code>jwt_public.pem</code>, auth-ms solo <code>jwt_private.pem</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="s6" class="page-break-before">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Evidencia (terminal)</h2>
+        <div class="aviso"><strong>Sobre las capturas.</strong> Esta evidencia es salida real de terminal. No hay capturas de la ventana Tkinter porque el Raspberry Pi donde se trabajó no tenía pantalla disponible: el log JWT se obtuvo ejecutando los mismos clientes HTTP de la app (<code>ClienteAuth</code> y <code>ClienteLibros</code>) desde un script. Queda pendiente tomar las capturas de la ventana en una máquina con pantalla.</div>
+
+        <h3>Rechazo sin token y lectura pública</h3>
+        <pre class="terminal"><code>$ curl -si -X POST localhost:5011/books -H &quot;Content-Type: application/json&quot; -d &quot;{}&quot;
+HTTP/1.1 401 UNAUTHORIZED
+Connection: keep-alive
+Content-Type: application/xml; charset=utf-8
+WWW-Authenticate: Bearer realm=&quot;libros-ms&quot;
+
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;error&gt;Se requiere un token Bearer.&lt;/error&gt;
+
+$ curl -si localhost:5011/books?per_page=1  (publico)
+HTTP/1.1 200 OK
+</code></pre>
+
+        <h3>Suite de pruebas</h3>
+        <pre class="terminal"><code>1. Lectura publica (sin token)
+  [OK] GET /books: 200
+2. Escrituras sin credenciales validas -&gt; 401
+  [OK] POST sin token: 401
+  [OK] PUT sin token: 401
+  [OK] PATCH sin token: 401
+  [OK] DELETE sin token: 401
+  [OK] POST token basura: 401
+  [OK] PUT token basura: 401
+  [OK] PATCH token basura: 401
+  [OK] DELETE token basura: 401
+  [OK] POST firmado con otra clave: 401
+  [OK] PUT firmado con otra clave: 401
+  [OK] PATCH firmado con otra clave: 401
+  [OK] DELETE firmado con otra clave: 401
+  [OK] POST alg=none: 401
+  [OK] PUT alg=none: 401
+  [OK] PATCH alg=none: 401
+  [OK] DELETE alg=none: 401
+  [OK] POST expirado: 401
+  [OK] PUT expirado: 401
+  [OK] PATCH expirado: 401
+  [OK] DELETE expirado: 401
+  [OK] WWW-Authenticate presente: True
+3. Flujo con JWT valido de auth-ms
+  [OK] header alg: RS256
+  [OK] token_type: Bearer
+  [OK] POST crea: 201
+  [OK] GET publico ve el libro: 200
+  [OK] PATCH actualiza: 200
+  [OK] PUT reemplaza: 200
+  [OK] DELETE elimina: 204
+  [OK] GET tras borrar: 404
+4. Aislamiento de claves
+  [OK] libros-ms solo tiene la publica: [&#x27;jwt_public.pem&#x27;]
+  [OK] auth-ms solo tiene la privada: [&#x27;jwt_private.pem&#x27;]
+
+TODO OK
+</code></pre>
+
+        <h3>Log JWT del cliente Python (login, alta y baja de un libro)</h3>
+        <p>Cada petición con Bearer muestra los encabezados enviados, el header y los claims del token decodificados y el tiempo de vida restante. La firma está truncada.</p>
+        <pre class="terminal"><code>19:04:39 [JWT] &lt;== POST /login: JWT recibido (expires_in=900s)
+19:04:39 [JWT]     Authorization sera: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImF1dGgtbXMtMjAyNi0xIiwidHlwIjoiSldUIn0.eyJpc3MiOiJhdXRoLW1zIiwiYXVkIjoibGlicm9zLW1zIiwic3ViIjoiMTgiLCJlbWFpbCI6ImRlbW8tYWUwZjYzQGV4YW1wbGUuY29tIiwiaWF0IjoxNzkwNzMwMjc4LCJleHAiOjE3OTA3MzExNzgsImp0aSI6ImEwZDNkZTc4MGUxMTQyYmZhZWRmYTgwNzUyOTdlMDdmIn0.GTgZjN...jL2g
+19:04:39 [JWT]     JWT header : {&quot;alg&quot;: &quot;RS256&quot;, &quot;kid&quot;: &quot;auth-ms-2026-1&quot;, &quot;typ&quot;: &quot;JWT&quot;}
+19:04:39 [JWT]     JWT claims : {&quot;iss&quot;: &quot;auth-ms&quot;, &quot;aud&quot;: &quot;libros-ms&quot;, &quot;sub&quot;: &quot;18&quot;, &quot;email&quot;: &quot;demo-ae0f63@example.com&quot;, &quot;iat&quot;: 1790730278, &quot;exp&quot;: 1790731178, &quot;jti&quot;: &quot;a0d3de780e1142bfaedfa8075297e07f&quot;}
+19:04:39 [JWT]     JWT expira : en 899s (VIGENTE)
+19:04:39 [JWT] --&gt; POST http://localhost:5011/books
+19:04:39 [JWT]     User-Agent: python-requests/2.32.3
+19:04:39 [JWT]     Accept-Encoding: gzip, deflate, br
+19:04:39 [JWT]     Accept: */*
+19:04:39 [JWT]     Connection: keep-alive
+19:04:39 [JWT]     Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImF1dGgtbXMtMjAyNi0xIiwidHlwIjoiSldUIn0.eyJpc3MiOiJhdXRoLW1zIiwiYXVkIjoibGlicm9zLW1zIiwic3ViIjoiMTgiLCJlbWFpbCI6ImRlbW8tYWUwZjYzQGV4YW1wbGUuY29tIiwiaWF0IjoxNzkwNzMwMjc4LCJleHAiOjE3OTA3MzExNzgsImp0aSI6ImEwZDNkZTc4MGUxMTQyYmZhZWRmYTgwNzUyOTdlMDdmIn0.GTgZjN...jL2g
+19:04:39 [JWT]     Content-Length: 84
+19:04:39 [JWT]     Content-Type: application/json
+19:04:39 [JWT]     JWT header : {&quot;alg&quot;: &quot;RS256&quot;, &quot;kid&quot;: &quot;auth-ms-2026-1&quot;, &quot;typ&quot;: &quot;JWT&quot;}
+19:04:39 [JWT]     JWT claims : {&quot;iss&quot;: &quot;auth-ms&quot;, &quot;aud&quot;: &quot;libros-ms&quot;, &quot;sub&quot;: &quot;18&quot;, &quot;email&quot;: &quot;demo-ae0f63@example.com&quot;, &quot;iat&quot;: 1790730278, &quot;exp&quot;: 1790731178, &quot;jti&quot;: &quot;a0d3de780e1142bfaedfa8075297e07f&quot;}
+19:04:39 [JWT]     JWT expira : en 899s (VIGENTE)
+19:04:39 [JWT] &lt;-- 201 CREATED
+19:04:39 [JWT]     Content-Type: application/xml; charset=utf-8
+19:04:39 [JWT] --&gt; DELETE http://localhost:5011/books/9781790730279
+19:04:39 [JWT]     User-Agent: python-requests/2.32.3
+19:04:39 [JWT]     Accept-Encoding: gzip, deflate, br
+19:04:39 [JWT]     Accept: */*
+19:04:39 [JWT]     Connection: keep-alive
+19:04:39 [JWT]     Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImF1dGgtbXMtMjAyNi0xIiwidHlwIjoiSldUIn0.eyJpc3MiOiJhdXRoLW1zIiwiYXVkIjoibGlicm9zLW1zIiwic3ViIjoiMTgiLCJlbWFpbCI6ImRlbW8tYWUwZjYzQGV4YW1wbGUuY29tIiwiaWF0IjoxNzkwNzMwMjc4LCJleHAiOjE3OTA3MzExNzgsImp0aSI6ImEwZDNkZTc4MGUxMTQyYmZhZWRmYTgwNzUyOTdlMDdmIn0.GTgZjN...jL2g
+19:04:39 [JWT]     Content-Length: 0
+19:04:39 [JWT]     JWT header : {&quot;alg&quot;: &quot;RS256&quot;, &quot;kid&quot;: &quot;auth-ms-2026-1&quot;, &quot;typ&quot;: &quot;JWT&quot;}
+19:04:39 [JWT]     JWT claims : {&quot;iss&quot;: &quot;auth-ms&quot;, &quot;aud&quot;: &quot;libros-ms&quot;, &quot;sub&quot;: &quot;18&quot;, &quot;email&quot;: &quot;demo-ae0f63@example.com&quot;, &quot;iat&quot;: 1790730278, &quot;exp&quot;: 1790731178, &quot;jti&quot;: &quot;a0d3de780e1142bfaedfa8075297e07f&quot;}
+19:04:39 [JWT]     JWT expira : en 899s (VIGENTE)
+19:04:39 [JWT] &lt;-- 204 NO CONTENT
+19:04:39 [JWT]     Content-Type: text/html; charset=utf-8
+</code></pre>
+      </div>
+    </section>
+
+    <section id="s7" class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Problemas encontrados y soluciones</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Causa</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr><td><code>PUT /books/{isbn}</code> respondía 500 con un JWT válido</td><td>El reemplazo total ponía <code>formato</code> en NULL y la columna no lo admite. Es un defecto que ya existía en ej04; el JWT no tiene relación</td><td>En la copia de ej07, el <code>PUT</code> usa <code>Fisico</code> por defecto, igual que el <code>POST</code>. El ej04 original conserva el defecto</td></tr>
+              <tr><td>El contenedor de <code>auth-ms</code> no podía leer la clave privada</td><td>La imagen corre como el usuario 10001 y el archivo es <code>chmod 600</code> del usuario del host</td><td>El servicio corre con el UID del host (<code>JWT_UID</code>, por defecto 1000) en vez de aflojar los permisos de la clave</td></tr>
+              <tr><td>Conflicto con los servicios ya desplegados</td><td>Nombres de contenedor y puertos fijos (5001, 5002, 8025)</td><td>Contenedores <code>*-jwt</code>, puertos 5011/5012 y Mailpit en 8026</td></tr>
+              <tr><td>Los scripts de despliegue decían que el hostname público respondía</td><td>Consultaban <code>auth.</code>/<code>libros.</code>, que apuntan a los servicios <em>viejos</em></td><td>Se quitó ese bloque de los <code>deploy.sh</code> de ej07</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="s8">
+      <div class="section-number">08</div>
+      <div>
+        <h2>Conclusiones y pendientes</h2>
+        <p>Las escrituras del catálogo ya no aceptan a un cliente anónimo: sin token, con un token corrupto, firmado con otra clave, sin firma o vencido, la respuesta es 401, y con un JWT emitido por <code>auth-ms</code> el ciclo completo <code>POST → PATCH → PUT → DELETE</code> funciona. Como <code>libros-ms</code> solo tiene la clave pública, comprometerlo no permite emitir tokens.</p>
+        <div class="aviso">
+          <strong>Pendientes, dichos con claridad:</strong>
+          <ul>
+            <li><strong>Hostnames públicos:</strong> <code>auth-jwt.maxthecoder.online</code> y <code>libros-jwt.maxthecoder.online</code> están configurados en los <code>.env</code> pero <em>todavía no están dados de alta</em> en Cloudflare. Hasta entonces el ejercicio solo se probó en local (<code>localhost:5011</code> y <code>:5012</code>).</li>
+            <li><strong>Capturas de la ventana Tkinter:</strong> pendientes (ver sección 06).</li>
+            <li><strong>Sin revocación ni roles:</strong> un token robado sirve hasta su expiración y cualquier usuario verificado puede escribir en el catálogo.</li>
+            <li><strong>Sin rotación automática de claves:</strong> el <code>kid</code> la permite, pero hoy se rota a mano con <code>gen-claves.sh --forzar</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="s9">
+      <div class="section-number">09</div>
+      <div>
+        <h2>Uso de IA y prompts</h2>
+        <p>Desarrollado con <strong>Claude Code</strong> (Anthropic) en una sesión de terminal sobre el Raspberry Pi. Primero exploró el código de ej04, ej05 y ej06 (sin modificar nada), propuso un plan y preguntó tres decisiones antes de escribir código.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prompt (resumido)</th><th>Qué produjo la IA</th><th>Qué se aceptó / modificó</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>El planteamiento del ejercicio guiado: proteger escrituras de <code>libros</code> con JWT emitido por <code>login</code>, actualizar la app Python y mostrar en su terminal un log de las peticiones JWT con los encabezados de los tokens.</td>
+                <td>Detectó que las rutas reales son <code>/books</code> (no <code>/api/books</code>), que las escrituras estaban totalmente abiertas y que ej07 estaba vacío; propuso un plan y preguntó dónde vivir el código, qué hacer con las rutas y cómo validar el token.</td>
+                <td><strong>Elegido por el estudiante:</strong> copias en <code>ejercicio-07/</code>, rutas <code>/books</code> y RS256 con clave pública.</td>
+              </tr>
+              <tr>
+                <td>Plan aprobado.</td>
+                <td>Implementó el emisor, el validador, los cambios del cliente, el log y las pruebas; desplegó los contenedores y corrió la suite. La primera corrida falló en el <code>PUT</code>: encontró que era un defecto previo de ej04 y lo corrigió solo en la copia.</td>
+                <td><strong>Aceptado</strong> tras ver la suite completa en verde.</td>
+              </tr>
+              <tr>
+                <td>Documentar que todo corre en un Raspberry Pi con dominio propio y Cloudflare Tunnels; luego, crear los hostnames por API.</td>
+                <td>Documentó la infraestructura y ajustó los <code>.env</code>. No tenía acceso a la API de Cloudflare ni credenciales, así que pidió un token con permiso acotado en vez de buscar uno.</td>
+                <td><strong>Pendiente:</strong> el estudiante aún no ha proporcionado las credenciales ni creado los hostnames.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:16px;">Nada se dio por probado sin correrlo contra los servicios reales; lo que no se pudo verificar (capturas de la ventana, hostnames públicos) queda declarado en la sección 08.</p>
+      </div>
+    </section>
+
+    <section id="s10">
+      <div class="section-number">10</div>
+      <div>
+        <h2>Reflexión personal</h2>
+        <div class="aviso">
+          <strong>Nota de transparencia:</strong> el texto de abajo es un borrador escrito por Claude Code a partir de lo que ocurrió en esta sesión. La consigna pide la reflexión <em>personal</em> del estudiante, así que este texto debe revisarse y reescribirse con las propias palabras antes de la entrega.
+        </div>
+        <p>Lo que más cambió mi idea de "proteger un endpoint" fue separar quién <em>emite</em> de quién <em>verifica</em>. Con RS256, el servicio de libros solo guarda la clave pública: aunque alguien lo comprometa, no puede fabricar tokens. Entendí también que un JWT no se puede "cerrar": mientras no venza, sirve, y por eso el tiempo de vida corto y la renovación con la cookie son parte del diseño y no un detalle.</p>
+        <p>La prueba más útil fue intentar entrar de las formas incorrectas: sin token, con basura, con una firma de otra clave, con <code>alg: none</code> y con un token vencido. Todas dieron 401. Al probar la ruta feliz apareció un 500 que no venía del JWT sino de un defecto viejo del <code>PUT</code>; lo corregí solo en la copia y lo dejé escrito para no confundir un problema de autorización con uno de datos.</p>
+        <p>Ver el log de la app con el header del token decodificado ayuda a entender qué viaja por la red. También muestra el límite: el cliente decodifica los claims pero no puede verificar la firma, y solo el servicio decide si el token vale.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+    </footer>
+  </main>
+</body>
+</html>
