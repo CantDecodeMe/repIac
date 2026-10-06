@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 09 · Redis en los microservicios</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision dl { margin: 0; font-size: 0.78rem; }
+    .decision dt { float: left; clear: left; width: 92px; color: var(--pink); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding-top: 3px; }
+    .decision dd { margin: 0 0 7px 100px; color: var(--muted); }
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+    pre.terminal { white-space: pre-wrap; word-break: break-all; font-size: 0.66rem; line-height: 1.5; }
+    .galeria { margin: 20px 0 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .galeria figure { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--soft); }
+    .galeria img { width: 100%; height: auto; display: block; }
+    .galeria figcaption { padding: 10px 14px; font-size: 0.7rem; color: var(--muted); line-height: 1.45; }
+    .animacion { margin: 20px 0 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .animacion iframe { display: block; width: 100%; height: 1240px; border: 0; }
+    .archivos { margin: 14px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.74rem; }
+    .archivos li { padding: 3px 0; break-inside: avoid; }
+    @media (max-width: 650px) { .indice, .archivos { columns: 1; } .galeria { grid-template-columns: 1fr; } .decision dt { float: none; width: auto; } .decision dd { margin-left: 0; } }
+    @media print { .indice, .animacion { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 09 · Implementación de Redis</p>
+      <h1>Lo que debe olvidarse solo<br>vive en <em>Redis.</em></h1>
+      <p class="report-lead">Redis entra al proyecto Library como capa compartida por seis microservicios: guarda sesiones y refresh tokens con TTL, la lista de revocación de JWT, el caché de las lecturas públicas del catálogo y los candados temporales. Se suman cuatro servicios nuevos —<code>users</code>, <code>authors</code>, <code>pedidos</code> y <code>pagos</code>— protegidos con JWT HS256 de 20 minutos, y la app Python/Tkinter opera el CRUD de todos. PostgreSQL sigue siendo la fuente de verdad.</p>
+      <div class="header-tags">
+        <span>Redis 7</span><span>JWT · HS256</span><span>Flask</span><span>PostgreSQL</span><span>Caché + invalidación</span><span>Revocación por jti</span><span>Python/Tkinter</span><span>Raspberry Pi · Docker</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y alcance</a></li>
+        <li><a href="#s2">02 · Arquitectura</a></li>
+        <li><a href="#s3">03 · Animación del sistema</a></li>
+        <li><a href="#s4">04 · Qué guarda Redis</a></li>
+        <li><a href="#s5">05 · JWT y endpoints</a></li>
+        <li><a href="#s6">06 · Decisiones de ingeniería</a></li>
+        <li><a href="#s7">07 · Bitácora de pruebas</a></li>
+        <li><a href="#s8">08 · Evidencia: peticiones y respuestas (curl)</a></li>
+        <li><a href="#s9">09 · Evidencia: la app Python/Tkinter</a></li>
+        <li><a href="#s10">10 · Problemas encontrados y pendientes</a></li>
+        <li><a href="#s11">11 · Uso de IA y prompts</a></li>
+        <li><a href="#s12">12 · Reflexión</a></li>
+      </ul>
+    </header>
+
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>La consigna pide tres cosas. Primero, incorporar Redis como capa compartida para sesiones y refresh tokens, revocación de JWT por <code>jti</code>, caché de <code>GET /books</code> y <code>GET /books/{isbn}</code> con invalidación en cada escritura, y coordinación de tareas temporales; con una URL común protegida, tiempos de expiración coherentes, manejo de desconexión, métricas y pruebas. Segundo, desarrollar cuatro microservicios (Users, Authors, Pedidos, Pagos) con JWT HS256 de 20 minutos, roles, 401/403 y CORS restringido. Tercero, que la app Python/Tkinter use todos los servicios, con semáforos y formularios CRUD.</p>
+        <p><strong>Dentro del alcance:</strong> Redis, los seis servicios, la app, 207 pruebas automatizadas, evidencias con curl y de la interfaz, y esta animación y reflexión.</p>
+        <p><strong>Fuera del alcance:</strong> una pasarela de pago real (<code>pagos-ms</code> es una simulación: nunca recibe datos de tarjeta), Redis con réplica, y el cliente Electron del ejercicio 04, que no se modificó.</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <pre><code>                         ┌─ auth-ms     :5021  login · emite JWT (HS256)
+                         ├─ libros-ms   :5022  /books · GET público y cacheado
+ App Python/Tkinter ─────┼─ users-ms    :5023  usuarios y roles
+ (solo HTTP, con         ├─ authors-ms  :5024  autores ↔ libros
+  Bearer JWT)            ├─ pedidos-ms  :5025  pedidos, líneas, stock
+                         └─ pagos-ms    :5026  pagos → estado del pedido
+                                │                         │
+                    REDIS_URL (con contraseña)     un rol mínimo por servicio
+                                ▼                         ▼
+                             Redis 7                 PostgreSQL
+              sesiones · refresh · jwt:revoked     fuente de verdad
+              caché books:* · candados (todo TTL)  auth · public · pedidos · pagos</code></pre>
+        <p>Los seis servicios comparten dos cosas: la URL de Redis y <code>JWT_SECRET_KEY</code>, ambas por variable de entorno. El código común (JWT, Redis, métricas, CORS) vive en una carpeta <code>comun/</code> que se copia a cada imagen. Cada contenedor recibe solo sus variables: ninguno ve la contraseña de PostgreSQL de otro.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Servicio</th><th>Rol de PostgreSQL</th><th>Qué puede tocar</th></tr></thead>
+            <tbody>
+              <tr><td><code>auth-ms</code></td><td><code>auth_ms_svc</code></td><td><code>auth.usuarios</code>; lee <code>auth.roles</code></td></tr>
+              <tr><td><code>libros-ms</code></td><td><code>libros_ms_svc</code></td><td>lee el catálogo; escribe <code>libros</code> y <code>libro_autor</code></td></tr>
+              <tr><td><code>users-ms</code></td><td><code>users_ms_svc</code></td><td>escribe <code>auth.usuarios</code>; lee <code>auth.roles</code></td></tr>
+              <tr><td><code>authors-ms</code></td><td><code>authors_ms_svc</code></td><td>escribe <code>autores</code> y <code>libro_autor</code>; lee <code>libros</code></td></tr>
+              <tr><td><code>pedidos-ms</code></td><td><code>pedidos_ms_svc</code></td><td>esquema <code>pedidos</code>; de <code>libros</code> lee y actualiza <strong>solo</strong> <code>stock</code></td></tr>
+              <tr><td><code>pagos-ms</code></td><td><code>pagos_ms_svc</code></td><td>esquema <code>pagos</code>; de <code>pedidos.pedidos</code> lee y actualiza <strong>solo</strong> <code>estado</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="s3" class="page-break-before">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Animación del sistema</h2>
+        <p>Siete escenas y 52 pasos: login, caché de <code>/books</code>, escritura con JWT, pedido y pago, renovación del token, logout con revocación y Redis caído. En cada paso se ve quién le habla a quién, qué lleva el mensaje y qué claves hay en Redis en ese momento. <a href="animacion/">Abrir la animación a pantalla completa ↗</a></p>
+        <div class="animacion">
+          <iframe src="animacion/" title="Animación: microservicios, JWT y Redis" loading="lazy"></iframe>
+        </div>
+        <p style="font-size:0.74rem;color:var(--muted);">Atajos: ← → cambian de paso, espacio reproduce o pausa. Es un solo archivo HTML, sin dependencias.</p>
+      </div>
+    </section>
+
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Qué guarda Redis</h2>
+        <p>Todas las claves tienen TTL y ninguna contiene un token en claro: la sesión y el refresh se guardan por su sha256.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Clave</th><th>Contenido</th><th>TTL</th><th>Para qué</th></tr></thead>
+            <tbody>
+              <tr><td><code>session:&lt;sha256&gt;</code></td><td><code>user_id</code>, <code>role_id</code>, <code>jti</code> vigente</td><td>2 h</td><td>sesión del login</td></tr>
+              <tr><td><code>refresh:&lt;sha256&gt;</code></td><td><code>user_id</code>, sesión</td><td>7 días</td><td>renovar el JWT; de un solo uso</td></tr>
+              <tr><td><code>jwt:revoked:&lt;jti&gt;</code></td><td><code>1</code></td><td>lo que le quedaba al JWT</td><td>lista de revocación</td></tr>
+              <tr><td><code>books:list:&lt;filtros&gt;</code></td><td>XML del listado</td><td>60 s</td><td>caché de <code>GET /books</code></td></tr>
+              <tr><td><code>books:&lt;isbn&gt;</code></td><td>XML del libro</td><td>120 s</td><td>caché de <code>GET /books/{isbn}</code></td></tr>
+              <tr><td><code>login:intentos:&lt;sha256&gt;</code></td><td>contador</td><td>15 min</td><td>frena fuerza bruta (429 al quinto fallo)</td></tr>
+              <tr><td><code>lock:pedido:&lt;id&gt;</code></td><td>token</td><td>10 s</td><td>coordina pedidos-ms y pagos-ms</td></tr>
+              <tr><td><code>pago:idem:&lt;usuario&gt;:&lt;clave&gt;</code></td><td><code>pago_id</code></td><td>24 h</td><td>no cobrar dos veces un reintento</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:16px;"><strong>Tiempos coherentes:</strong> caché (1–2 min) &lt; JWT (20 min) &lt; sesión (2 h) &lt; refresh (7 días). La entrada de revocación vive exactamente lo que le faltaba al token.</p>
+        <div class="aviso"><strong>Dos políticas de fallo.</strong> El caché es <em>opcional</em>: si Redis no responde, se consulta PostgreSQL y la respuesta sale con <code>X-Cache: BYPASS</code>. La sesión, la revocación y los candados <em>fallan cerrado</em>: si Redis no responde, 503. Aceptar un token «por si acaso» volvería válido un JWT robado y ya revocado.</div>
+      </div>
+    </section>
+
+    <section id="s5">
+      <div class="section-number">05</div>
+      <div>
+        <h2>JWT y endpoints</h2>
+        <p>HS256 con <code>JWT_SECRET_KEY</code> (variable de entorno, mínimo 32 bytes, sin valor por defecto), 20 minutos de vida y claims <code>user_id</code>, <code>role_id</code> (1 admin, 2 cliente), <code>jti</code>, <code>iss</code>, <code>aud</code>, <code>iat</code> y <code>exp</code>. Cada servicio valida localmente firma, algoritmo (fijo: <code>alg: none</code> se rechaza), expiración y claims, y después consulta <code>jwt:revoked:&lt;jti&gt;</code> en Redis.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Servicio</th><th>Rutas</th><th>Acceso</th></tr></thead>
+            <tbody>
+              <tr><td>auth-ms</td><td><code>POST /login</code>, <code>POST /refresh</code>, <code>POST /logout</code>, <code>POST /register</code></td><td>público</td></tr>
+              <tr><td>libros-ms</td><td><code>GET /books</code>, <code>GET /books/{isbn}</code></td><td>público, cacheado</td></tr>
+              <tr><td>libros-ms</td><td><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE /books</code></td><td>JWT admin</td></tr>
+              <tr><td>users-ms</td><td><code>GET/POST /users</code>, <code>PUT/PATCH/DELETE /users/{id}</code>, <code>GET /roles</code></td><td>JWT admin (cada quien ve y edita el suyo)</td></tr>
+              <tr><td>authors-ms</td><td><code>GET /authors</code>, <code>GET /authors/{id}</code></td><td>público</td></tr>
+              <tr><td>authors-ms</td><td><code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE /authors</code>, <code>PUT/DELETE /authors/{id}/books/{isbn}</code></td><td>JWT admin</td></tr>
+              <tr><td>pedidos-ms</td><td><code>GET/POST /orders</code>, <code>DELETE /orders/{id}</code>, <code>PUT/DELETE /orders/{id}/lines/{isbn}</code></td><td>JWT (los propios; admin todos)</td></tr>
+              <tr><td>pedidos-ms</td><td><code>PATCH /orders/{id}</code> (estado)</td><td>JWT admin</td></tr>
+              <tr><td>pagos-ms</td><td><code>GET/POST /payments</code></td><td>JWT (los propios; admin todos)</td></tr>
+              <tr><td>pagos-ms</td><td><code>PATCH/DELETE /payments/{id}</code> (reembolsar, anular)</td><td>JWT admin</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:16px;"><strong>401</strong> si el token falta, no es válido, expiró o fue revocado; <strong>403</strong> si el rol no alcanza; <strong>503</strong> si no se pudo consultar la revocación. Pedidos y pagos son datos personales, así que también sus <code>GET</code> exigen JWT. CORS usa una lista blanca (<code>CORS_ORIGENES</code>); nunca responde <code>*</code>. Ni el token ni la contraseña llegan a un log.</p>
+      </div>
+    </section>
+
+    <section id="s6" class="page-break-before">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+
+        <div class="decision">
+          <h3>Pedidos y pagos en esquemas propios, no en las tablas del monolito</h3>
+          <dl>
+            <dt>Contexto</dt><dd><code>public.pedidos</code> del monolito referencia <code>public.usuarios</code>, pero el <code>user_id</code> del JWT es el de <code>auth.usuarios</code>. Son identidades distintas.</dd>
+            <dt>Decisión</dt><dd>Esquemas nuevos <code>pedidos</code> y <code>pagos</code> ligados a <code>auth.usuarios</code>. El esquema <code>public</code> no recibe ni un <code>ALTER</code>, ni siquiera una llave foránea (crearía triggers sobre la tabla del monolito).</dd>
+            <dt>Costo</dt><dd>Los pedidos de los microservicios no aparecen en el monolito. El stock sí es compartido: el rol solo puede actualizar esa columna.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>El caché falla abierto; la autorización falla cerrado</h3>
+          <dl>
+            <dt>Contexto</dt><dd>La consigna pide que Redis sea opcional para las lecturas cacheadas pero que sesión, revocación y autorización fallen de forma segura.</dd>
+            <dt>Decisión</dt><dd>Un solo módulo habla con Redis y separa las dos familias: las de caché devuelven «no hay» ante un error; las críticas lanzan una excepción que se traduce a 503.</dd>
+            <dt>Verificación</dt><dd>Se detuvo el contenedor de Redis: el catálogo siguió en 200 y todo lo que exige JWT respondió 503, incluso con un token válido.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>La atomicidad vive en PostgreSQL</h3>
+          <dl>
+            <dt>Contexto</dt><dd>Crear un pedido toca tres cosas: el pedido, sus líneas y el stock. Pagar toca el pago y el estado del pedido.</dd>
+            <dt>Decisión</dt><dd>Funciones de PostgreSQL (<code>pedidos.crear_pedido</code>, <code>pagos.registrar_pago</code>…) con <code>SELECT … FOR UPDATE</code>. Los errores de negocio viajan como códigos propios que el servicio traduce a 404, 409 o 400.</dd>
+            <dt>Por qué no en Redis</dt><dd>Un contador de stock en Redis sería rápido, pero un desfase con PostgreSQL vende libros que no existen.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Refresh token rotado y JWT anterior revocado</h3>
+          <dl>
+            <dt>Decisión</dt><dd><code>POST /refresh</code> entrega un JWT y un refresh nuevos, borra el refresh usado y revoca el JWT anterior. La app renueva sola cuando al token le queda menos de un minuto.</dd>
+            <dt>Efecto</dt><dd>Un refresh token robado sirve, como mucho, una vez.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Un cambio de rol cierra las sesiones del usuario</h3>
+          <dl>
+            <dt>Contexto</dt><dd>El <code>role_id</code> viaja dentro del JWT: si un administrador degrada a alguien, su token seguiría diciendo «admin» hasta 20 minutos.</dd>
+            <dt>Decisión</dt><dd>Al cambiar rol, email, contraseña o estado, <code>users-ms</code> revoca en Redis los JWT de ese usuario. Dejan de valer en los seis servicios al instante.</dd>
+          </dl>
+        </div>
+
+        <div class="decision">
+          <h3>Invalidar el caché desde tres servicios</h3>
+          <dl>
+            <dt>Contexto</dt><dd><code>/books</code> muestra los autores y el stock de cada libro, que cambian desde <code>authors-ms</code> y <code>pedidos-ms</code>.</dd>
+            <dt>Decisión</dt><dd>La invalidación de <code>books:*</code> está en el código común y la llaman los tres. El TTL corto es la red de seguridad si una invalidación no llega a ejecutarse.</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section id="s7" class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Bitácora de pruebas</h2>
+        <p>Las genera <code>scripts/run-tests.sh</code> (Python de biblioteca estándar) contra los contenedores reales. Resultado: <strong>207 comprobaciones, todas en verde</strong>. Las pruebas del ejercicio 07 siguen pasando: sus contenedores no se tocaron.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Bloque</th><th>Qué se hizo</th><th>Esperado</th><th>Resultado</th></tr></thead>
+            <tbody>
+              <tr><td>01</td><td>Emisión del JWT</td><td>Login como admin y como cliente; se decodifica el token</td><td>HS256, <code>exp − iat = 1200</code>, <code>user_id</code>, <code>role_id</code>, <code>jti</code></td><td>OK</td></tr>
+              <tr><td>02</td><td>Token inválido</td><td>Sin token, basura, <code>alg: none</code>, otra clave, expirado, sin <code>role_id</code>, sin <code>jti</code>, otra audiencia — en los cinco servicios de recursos</td><td>401 + <code>WWW-Authenticate</code></td><td>OK ×40</td></tr>
+              <tr><td>03</td><td>Rol insuficiente</td><td>Un cliente llama rutas de administrador, e intenta hacerse admin</td><td>403</td><td>OK ×7</td></tr>
+              <tr><td>04</td><td>Sesión en Redis</td><td>Tras el login se inspeccionan <code>session:</code> y <code>refresh:</code></td><td>existen, con TTL, sin token en claro</td><td>OK</td></tr>
+              <tr><td>05</td><td>Renovación</td><td><code>POST /refresh</code>; se reintenta con el refresh usado y con el JWT anterior</td><td>200; después 401 y 401</td><td>OK</td></tr>
+              <tr><td>06</td><td>Logout y revocación</td><td><code>POST /logout</code>; el mismo JWT se presenta en los cinco servicios</td><td>claves borradas, <code>jwt:revoked:&lt;jti&gt;</code> con TTL, 401 en todos</td><td>OK</td></tr>
+              <tr><td>07</td><td>Límite de intentos</td><td>Seis logins fallidos seguidos</td><td>cinco 401 y un 429</td><td>OK</td></tr>
+              <tr><td>08</td><td>Caché</td><td>Dos <code>GET</code> seguidos; un <code>PATCH</code>; otro <code>GET</code></td><td>MISS, HIT; claves borradas; MISS con el dato nuevo</td><td>OK</td></tr>
+              <tr><td>09</td><td>users-ms</td><td>CRUD completo, email duplicado, contraseña corta, cambio de rol</td><td>201/200/204, 409, 400; el JWT del usuario queda revocado</td><td>OK</td></tr>
+              <tr><td>10</td><td>authors-ms</td><td>CRUD, asociar y desasociar un libro</td><td>201/200/204; <code>/books</code> ya muestra al autor</td><td>OK</td></tr>
+              <tr><td>11</td><td>pedidos-ms</td><td>Crear, sin stock, cambiar líneas, pedido ajeno, estados</td><td>201; 409 sin mover stock; 404 al pedido de otro</td><td>OK</td></tr>
+              <tr><td>12</td><td>pagos-ms</td><td>Pagar, repetir con la misma <code>Idempotency-Key</code>, reembolsar, anular, cancelar</td><td>201; mismo pago sin duplicar; el stock regresa</td><td>OK</td></tr>
+              <tr><td>13</td><td>Mínimo privilegio</td><td>Cada rol nuevo intenta leer o escribir fuera de su dominio</td><td><code>permission denied</code></td><td>OK ×14</td></tr>
+              <tr><td>14</td><td>Redis detenido</td><td><code>docker stop libreria-redis</code></td><td>catálogo 200 (<code>BYPASS</code>); login, refresh, logout y rutas con JWT 503</td><td>OK</td></tr>
+              <tr><td>15</td><td>Recuperación</td><td><code>docker start libreria-redis</code></td><td>los servicios se reconectan solos; la sesión sigue</td><td>OK</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="s8" class="page-break-before">
+      <div class="section-number">08</div>
+      <div>
+        <h2>Evidencia: peticiones y respuestas (curl)</h2>
+        <p>Salida real de <code>scripts/evidencias.sh</code>. La firma de los tokens se muestra truncada y las contraseñas ocultas. Los archivos completos:</p>
+        <ul class="archivos">
+          <li><a href="curl/01_login_jwt.txt">01 · Login y JWT</a></li>
+          <li><a href="curl/02_jwt_401_403.txt">02 · 401 y 403</a></li>
+          <li><a href="curl/03_cache_books.txt">03 · Caché de /books</a></li>
+          <li><a href="curl/04_users_crud.txt">04 · CRUD de users</a></li>
+          <li><a href="curl/05_authors_crud.txt">05 · CRUD de authors</a></li>
+          <li><a href="curl/06_pedidos_crud.txt">06 · CRUD de pedidos</a></li>
+          <li><a href="curl/07_pagos_crud.txt">07 · CRUD de pagos</a></li>
+          <li><a href="curl/08_refresh_logout_revocacion.txt">08 · Refresh, logout y revocación</a></li>
+          <li><a href="curl/09_metricas_cors.txt">09 · Métricas y CORS</a></li>
+          <li><a href="curl/10_redis_caido.txt">10 · Redis detenido</a></li>
+          <li><a href="curl/11_minimo_privilegio.txt">11 · Mínimo privilegio</a></li>
+        </ul>
+
+        <h3>Login: el JWT y lo que queda en Redis</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; POST http://localhost:5021/login?format=json
+    Content-Type: application/json
+
+    {&quot;email&quot;: &quot;admin@libreria.local&quot;, &quot;password&quot;: &quot;&lt;oculta&gt;&quot;}
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Set-Cookie: auth_sid=&lt;oculta&gt;; Expires=Wed, 07 Oct 2026 01:02:43 GMT; Max-Age=7200; HttpOnly; Path=/; SameSite=Lax
+    Vary: Origin
+
+    {&quot;email&quot;:&quot;admin@libreria.local&quot;,&quot;expires_at&quot;:1791328963,&quot;expires_in&quot;:1200,&quot;nombre&quot;:&quot;Admin&quot;,&quot;refresh_expires_in&quot;:604800,&quot;refresh_token&quot;:&quot;&lt;oculto&gt;&quot;,&quot;role_id&quot;:1,&quot;token&quot;:&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma- …</code></pre>
+        <pre class="terminal"><code>    {
+      &quot;iss&quot;: &quot;auth-ms&quot;,
+      &quot;aud&quot;: &quot;libreria&quot;,
+      &quot;sub&quot;: &quot;19&quot;,
+      &quot;user_id&quot;: 19,
+      &quot;role_id&quot;: 1,
+      &quot;email&quot;: &quot;admin@libreria.local&quot;,
+      &quot;iat&quot;: 1791327763,
+      &quot;exp&quot;: 1791328963,
+      &quot;jti&quot;: &quot;d8ff7004af5942d3ba0f1a1dac0c580f&quot;
+    }</code></pre>
+        <pre class="terminal"><code>$ redis-cli HGETALL refresh:fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+    user_id
+    19
+    sid
+    568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+
+$ redis-cli TTL refresh:fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+    604800
+
+$ redis-cli HGETALL session:568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+    user_id
+    19
+    role_id
+    1
+    email
+    admin@libreria.local
+    jti
+    d8ff7004af5942d3ba0f1a1dac0c580f
+    jti_exp
+    1791328963
+    refresh
+    fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+
+$ redis-cli TTL session:568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+    7200</code></pre>
+
+        <h3>401 sin token y 403 con rol insuficiente</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5023/users?format=json
+
+&lt;&lt;&lt; HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm=&quot;users-ms&quot;
+    Vary: Origin
+
+    {&quot;error&quot;:&quot;Se requiere un token Bearer.&quot;}</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+
+&lt;&lt;&lt; HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/json
+    Vary: Origin
+
+    {&quot;error&quot;:&quot;Tu rol no tiene permiso para esta operacion.&quot;}
+</code></pre>
+
+        <h3>Caché: MISS, HIT e invalidación</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: HIT
+    Vary: Origin</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; PATCH http://localhost:5022/books/EVID-EJ09-1791327763
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+    Content-Type: application/json
+
+    {&quot;titulo&quot;:&quot;Libro de evidencia (editado)&quot;}
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    Vary: Origin
+
+    &lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+    &lt;book&gt;&lt;isbn&gt;EVID-EJ09-1791327763&lt;/isbn&gt;&lt;title&gt;Libro de evidencia (editado)&lt;/title&gt;&lt;genero /&gt;&lt;formato&gt;Fisico&lt;/formato&gt;&lt;editorial /&gt;&lt;year /&gt;&lt;portada /&gt;&lt;price&gt;120.50&lt;/price&gt;&lt;stock&gt;5&lt;/stock&gt;&lt;authors /&gt;&lt;concepts /&gt;&lt;/book&gt;
+
+$ redis-cli --scan --pattern books:*</code></pre>
+
+        <h3>Pedido sin stock e idempotencia del pago</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; POST http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+    Content-Type: application/json
+
+    {&quot;lineas&quot;:[{&quot;isbn&quot;:&quot;EVID-EJ09-1791327763&quot;,&quot;cantidad&quot;:99}]}
+
+&lt;&lt;&lt; HTTP/1.1 409 CONFLICT
+    Content-Type: application/json
+    Vary: Origin
+
+    {&quot;error&quot;:&quot;Stock insuficiente para \&quot;Libro de evidencia (editado)\&quot;: quedan 3, se pidieron 99 mas.&quot;}
+
+
+&gt;&gt;&gt; PUT http://localhost:5025/orders/12/lines/EVID-EJ09-1791327763?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+    Content-Type: application/json
+
+    {&quot;cantidad&quot;:3}
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {&quot;actualizado_en&quot;:&quot;2026-10-06T23:02:46.292292+00:00&quot;,&quot;creado_en&quot;:&quot;2026-10-06T23:02:46.206168+00:00&quot;,&quot;estado&quot;:&quot;pendiente&quot;,&quot;lineas&quot;:[{&quot;cantidad&quot;:3,&quot;isbn&quot;:&quot;EVID-EJ09-1791327763&quot;,&quot;linea_id&quot;:13,&quot;precio_unitario&quot;:&quot;120.50&quot;,&quot;subtotal&quot; …
+
+
+&gt;&gt;&gt; GET http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {&quot;page&quot;:1,&quot;pedidos&quot;:[{&quot;actualizado_en&quot;:&quot;2026-10-06T23:02:46.292292+00:00&quot;,&quot;articulos&quot;:3,&quot;creado_en&quot;:&quot;2026-10-06T23:02:46.206168+00:00&quot;,&quot;estado&quot;:&quot;pendiente&quot;,&quot;pedido_id&quot;:12,&quot;total&quot;:&quot;361.50&quot;,&quot;usuario_id&quot;:34}],&quot;per_page&quot;:20,&quot;total …
+
+
+&gt;&gt;&gt; GET http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {&quot;actualizado_en&quot;:&quot;2026-10-06T23:02:46.292292+00:00&quot;,&quot;creado_en&quot;:&quot;2026-10-06T23:02:46.206168+00:00&quot;,&quot;estado&quot;:&quot;pendiente&quot;,&quot;lineas&quot;:[{&quot;cantidad&quot;:3,&quot;isbn&quot;:&quot;EVID-EJ09-1791327763&quot;,&quot;linea_id&quot;:13,&quot;precio_unitario&quot;:&quot;120.50&quot;,&quot;subtotal&quot; …</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; POST http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+    Idempotency-Key: evidencia-1791327763
+    Content-Type: application/json
+
+    {&quot;pedido_id&quot;:12,&quot;metodo&quot;:&quot;tarjeta&quot;,&quot;referencia&quot;:&quot;REF-1791327763&quot;}
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Idempotent-Replay: true
+    Vary: Origin
+</code></pre>
+
+        <h3>Logout: el JWT, todavía sin expirar, ya no sirve en ningún servicio</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; POST http://localhost:5021/logout?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+    Content-Type: application/json
+
+    {&quot;refresh_token&quot;:&quot;&lt;oculto&gt;&quot;}
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/json
+    Set-Cookie: auth_sid=&lt;oculta&gt;; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/
+    Vary: Origin
+
+    {&quot;mensaje&quot;:&quot;Sesion cerrada.&quot;}
+
+
+$ redis-cli EXISTS jwt:revoked:e2fdb6a8072442ebb4d70906b473149e
+    1
+
+$ redis-cli TTL jwt:revoked:e2fdb6a8072442ebb4d70906b473149e
+    1199</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5023/roles?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+
+&lt;&lt;&lt; HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm=&quot;users-ms&quot;, error=&quot;invalid_token&quot;
+    Vary: Origin
+
+    {&quot;error&quot;:&quot;El token fue revocado.&quot;}</code></pre>
+
+        <h3>Redis detenido</h3>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+&lt;&lt;&lt; HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: BYPASS
+    Vary: Origin
+</code></pre>
+        <pre class="terminal"><code>&gt;&gt;&gt; GET http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...&lt;firma-oculta&gt;
+
+&lt;&lt;&lt; HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/json
+    Retry-After: 5
+    Vary: Origin
+
+    {&quot;error&quot;:&quot;El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo.&quot;}
+</code></pre>
+
+        <h3>Mínimo privilegio en PostgreSQL</h3>
+        <pre class="terminal"><code>$ psql -U users_ms_svc -c &quot;select * from public.usuarios&quot;
+    ERROR:  permission denied for table usuarios
+
+$ psql -U authors_ms_svc -c &quot;update public.libros set precio = 0&quot;
+    ERROR:  permission denied for table libros
+
+$ psql -U pedidos_ms_svc -c &quot;update public.libros set precio = 0&quot;
+    ERROR:  permission denied for table libros
+
+$ psql -U pedidos_ms_svc -c &quot;select * from auth.usuarios&quot;
+    ERROR:  permission denied for schema auth
+    LINE 1: select * from auth.usuarios
+                          ^
+
+$ psql -U pagos_ms_svc -c &quot;update pedidos.pedidos set total = 0&quot;
+    ERROR:  permission denied for table pedidos
+
+$ psql -U pagos_ms_svc -c &quot;select * from public.libros&quot;
+    ERROR:  permission denied for table libros</code></pre>
+      </div>
+    </section>
+
+    <section id="s9" class="page-break-before">
+      <div class="section-number">09</div>
+      <div>
+        <h2>Evidencia: la app Python/Tkinter</h2>
+        <p>La app tiene una pestaña por microservicio con sus formularios CRUD, semáforos para los seis servicios y para Redis (cada uno con su botón «Revisar ahora», más «Revisar todos») y renueva el JWT sola antes de que caduque. Nunca habla con Redis ni con la base: lo que sabe de Redis lo sabe por <code>/health</code> de cada servicio.</p>
+        <div class="aviso"><strong>Sobre las capturas.</strong> Son capturas reales de la ventana, tomadas con <code>scripts/generar_evidencias.py</code>: el script maneja la misma aplicación contra los servicios reales en una pantalla virtual (Xvfb) del Raspberry Pi, con la matrícula <strong>615639</strong> en el libro de prueba. Para las capturas de «Redis detenido» el script detiene y vuelve a arrancar el contenedor.</div>
+        <div class="galeria">
+          <figure>
+            <img src="fotos/03_admin_perfil_jwt.png" alt="Sesión iniciada como administrador: claims del JWT (user_id, role_id, jti), su vida restante y el botón para renovarlo con el refresh token." loading="lazy">
+            <figcaption>Sesión iniciada como administrador: claims del JWT (user_id, role_id, jti), su vida restante y el botón para renovarlo con el refresh token.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/04_jwt_renovado_refresh.png" alt="POST /refresh: JWT nuevo, refresh rotado y el JWT anterior revocado en Redis." loading="lazy">
+            <figcaption><code>POST /refresh</code>: JWT nuevo, refresh rotado y el JWT anterior revocado en Redis.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/05_semaforos_verde.png" alt="Semáforos de los seis microservicios y de Redis en verde, cada uno con su botón «Revisar ahora»." loading="lazy">
+            <figcaption>Semáforos de los seis microservicios y de Redis en verde, cada uno con su botón «Revisar ahora».</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/06_libros_post.png" alt="libros-ms: alta de PRUEBA REDIS - 615639 con POST /books (JWT de administrador)." loading="lazy">
+            <figcaption>libros-ms: alta de <code>PRUEBA REDIS - 615639</code> con <code>POST /books</code> (JWT de administrador).</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/09_autores_post.png" alt="authors-ms: autor creado con POST /authors." loading="lazy">
+            <figcaption>authors-ms: autor creado con <code>POST /authors</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/10_autores_asociar_libro_put.png" alt="authors-ms: relación autor ↔ libro con PUT /authors/&lt;id&gt;/books/&lt;isbn&gt;." loading="lazy">
+            <figcaption>authors-ms: relación autor ↔ libro con <code>PUT /authors/&lt;id&gt;/books/&lt;isbn&gt;</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/13_usuarios_post.png" alt="users-ms: usuario creado con POST /users, con rol cliente." loading="lazy">
+            <figcaption>users-ms: usuario creado con <code>POST /users</code>, con rol <code>cliente</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/14_usuarios_patch.png" alt="users-ms: PATCH /users/&lt;id&gt; manda solo el campo que cambió." loading="lazy">
+            <figcaption>users-ms: <code>PATCH /users/&lt;id&gt;</code> manda solo el campo que cambió.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/15_pedidos_post.png" alt="pedidos-ms: pedido creado con POST /orders; el stock se descuenta en la misma transacción." loading="lazy">
+            <figcaption>pedidos-ms: pedido creado con <code>POST /orders</code>; el stock se descuenta en la misma transacción.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/16_pedidos_linea_put.png" alt="pedidos-ms: PUT /orders/&lt;id&gt;/lines/&lt;isbn&gt; cambia la cantidad y recalcula el total." loading="lazy">
+            <figcaption>pedidos-ms: <code>PUT /orders/&lt;id&gt;/lines/&lt;isbn&gt;</code> cambia la cantidad y recalcula el total.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/17_pagos_post.png" alt="pagos-ms: POST /payments registra el pago y el pedido pasa a «pagado»." loading="lazy">
+            <figcaption>pagos-ms: <code>POST /payments</code> registra el pago y el pedido pasa a «pagado».</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/18_pedidos_estado_patch.png" alt="pedidos-ms: el administrador avanza el estado con PATCH /orders/&lt;id&gt;." loading="lazy">
+            <figcaption>pedidos-ms: el administrador avanza el estado con <code>PATCH /orders/&lt;id&gt;</code>.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/19_pagos_reembolso_patch.png" alt="pagos-ms: reembolso con PATCH /payments/&lt;id&gt;; el pedido vuelve a «pendiente»." loading="lazy">
+            <figcaption>pagos-ms: reembolso con <code>PATCH /payments/&lt;id&gt;</code>; el pedido vuelve a «pendiente».</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/20_pedidos_cancelar_delete.png" alt="pedidos-ms: DELETE /orders/&lt;id&gt; cancela y devuelve el stock." loading="lazy">
+            <figcaption>pedidos-ms: <code>DELETE /orders/&lt;id&gt;</code> cancela y devuelve el stock.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/21_redis_caido_semaforos.png" alt="Redis detenido: su semáforo en rojo y los seis servicios en amarillo (degradados, no caídos)." loading="lazy">
+            <figcaption>Redis detenido: su semáforo en rojo y los seis servicios en amarillo (degradados, no caídos).</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/22_redis_caido_catalogo_sigue.png" alt="Con Redis caído el catálogo sigue respondiendo: el caché es opcional." loading="lazy">
+            <figcaption>Con Redis caído el catálogo sigue respondiendo: el caché es opcional.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/23_redis_caido_pedidos_503.png" alt="Con Redis caído, una ruta con JWT responde 503: falla de forma segura." loading="lazy">
+            <figcaption>Con Redis caído, una ruta con JWT responde 503: falla de forma segura.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/24_redis_recuperado.png" alt="Redis de vuelta: todo regresa a verde sin reiniciar ningún servicio." loading="lazy">
+            <figcaption>Redis de vuelta: todo regresa a verde sin reiniciar ningún servicio.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/26_cliente_sin_pestanas_admin.png" alt="El mismo sistema visto por un cliente: sin las pestañas de administración." loading="lazy">
+            <figcaption>El mismo sistema visto por un cliente: sin las pestañas de administración.</figcaption>
+          </figure>
+          <figure>
+            <img src="fotos/28_cliente_pedido_propio_y_403.png" alt="Un cliente crea su pedido, pero cambiar el estado le devuelve 403." loading="lazy">
+            <figcaption>Un cliente crea su pedido, pero cambiar el estado le devuelve 403.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="s10" class="page-break-before">
+      <div class="section-number">10</div>
+      <div>
+        <h2>Problemas encontrados y pendientes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Problema</th><th>Causa</th><th>Solución</th></tr></thead>
+            <tbody>
+              <tr><td>Un <code>PUT</code> a un usuario le cerraba la sesión aunque no cambiara nada relevante</td><td><code>users-ms</code> revocaba las sesiones si el cuerpo <em>traía</em> email o rol, no si <em>cambiaban</em>. Un reemplazo total siempre los trae.</td><td>Se compara el valor anterior con el nuevo y solo se revoca si de verdad cambió.</td></tr>
+              <tr><td>Los roles de PostgreSQL de auth y libros son compartidos con los ejercicios 04, 05 y 07</td><td>El script de arranque les fijaba la contraseña; con una distinta, los contenedores anteriores dejarían de conectarse.</td><td>El script ya no le cambia la contraseña a un rol que existe.</td></tr>
+              <tr><td>Tras el login, el perfil salía sin apellidos</td><td><code>/login</code> devuelve lo mínimo.</td><td>La app consulta <code>/session</code> después de entrar.</td></tr>
+              <tr><td>Con Redis caído cada lectura tardaba medio segundo más</td><td>Cada <code>GET</code> esperaba el timeout de conexión.</td><td>Tras un fallo, el caché se salta 3 segundos antes de volver a intentar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="aviso">
+          <strong>Pendientes y límites, declarados:</strong>
+          <ul style="margin:8px 0 0;padding-left:18px;">
+            <li>Los servicios corren en el Raspberry Pi ligados a <code>127.0.0.1</code>; los hostnames públicos por el túnel de Cloudflare aún no están dados de alta, así que las evidencias son contra <code>localhost</code>.</li>
+            <li>Redis es un punto único de fallo para todo lo que exige JWT: no hay réplica.</li>
+            <li><code>/metrics</code> es público (solo contadores); habría que restringirlo antes de exponerlo.</li>
+            <li>La app hace las llamadas HTTP en el hilo de la interfaz: un servicio lento congela la ventana hasta 5 segundos.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="s11">
+      <div class="section-number">11</div>
+      <div>
+        <h2>Uso de IA y prompts</h2>
+        <p>Desarrollado con <strong>Claude Code</strong> (Anthropic) en una sesión de terminal sobre el Raspberry Pi. Primero leyó la consigna y el código de los ejercicios anteriores, preguntó las decisiones que no podía tomar solo y presentó un plan que se aprobó antes de escribir código.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prompt (resumido)</th><th>Qué produjo la IA</th><th>Qué se aceptó / modificó</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Revisar la consigna del ejercicio para empezar a trabajar.</td>
+                <td>Detectó que las tablas de pedidos del monolito no sirven con la identidad del JWT y preguntó dónde guardar pedidos y pagos, qué alcance dar a users y authors, y qué entregables incluir.</td>
+                <td><strong>Elegido por el estudiante:</strong> esquemas propios, users sobre <code>auth.*</code>, authors sobre <code>public.autores</code>, y los cuatro entregables.</td>
+              </tr>
+              <tr>
+                <td>Son cuatro microservicios nuevos, protegerlos con JWT usando Redis, con el componente del botón de revisión; Redis en todos los servicios y todas las aplicaciones.</td>
+                <td>Preguntó qué era el «review button» y qué clientes entraban.</td>
+                <td><strong>Elegido por el estudiante:</strong> el botón «Revisar ahora» de los semáforos; solo la app Tkinter.</td>
+              </tr>
+              <tr>
+                <td>Aprobación del plan.</td>
+                <td>El código de los seis servicios, el módulo común, el SQL, la app, 207 pruebas, los scripts de evidencia, la animación y un borrador de reflexión. Corrió todo contra los servicios reales.</td>
+                <td>Se aceptó. La reflexión queda marcada como borrador (sección 12).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:16px;">Nada se dio por probado sin correrlo contra los servicios reales; lo que no se verificó queda declarado en la sección 10.</p>
+      </div>
+    </section>
+
+    <section id="s12" class="page-break-before">
+      <div class="section-number">12</div>
+      <div>
+        <h2>Reflexión</h2>
+        <div class="aviso">
+          <strong>Nota de transparencia:</strong> el texto de abajo es un borrador escrito por Claude Code a partir de lo que se implementó y se midió en esta sesión. La consigna pide la reflexión del estudiante, así que debe revisarse y reescribirse con las propias palabras antes de la entrega.
+        </div>
+
+        <h3>Por qué usar Redis en los microservicios</h3>
+        <p>Con un solo servicio, la sesión podía vivir en una tabla de PostgreSQL. Con seis aparecen tres necesidades que una tabla resuelve mal. La primera es el <strong>estado temporal compartido</strong>: una sesión, un refresh token o un candado deben desaparecer solos, y en Redis eso es un <code>EXPIRE</code>, sin limpieza periódica ni un <code>WHERE vence_en &gt; now()</code> que recordar en cada consulta. La segunda es <strong>revocar un JWT</strong>: un token se valida sin preguntarle a nadie —esa es su ventaja— pero por lo mismo no se puede cancelar; la única forma de invalidarlo antes de su <code>exp</code> es que todos los servicios consulten un lugar común, en cada petición, y que cueste microsegundos. La tercera es <strong>no repetir consultas caras</strong>: <code>GET /books</code> une cuatro tablas, es la ruta más pedida y la que menos cambia.</p>
+        <p>Lo que Redis <em>no</em> guarda es igual de importante: ni usuarios, ni libros, ni pedidos, ni pagos. Si Redis se borra entero se pierden sesiones y caché; ningún dato del negocio.</p>
+
+        <h3>Qué endpoints son adecuados para Redis</h3>
+        <p><code>POST /login</code>, <code>/refresh</code> y <code>/logout</code>, porque crean y destruyen estado temporal. <strong>Toda ruta con Bearer</strong>, porque la revocación solo sirve si todos la consultan. <code>GET /books</code> y <code>GET /books/{isbn}</code>, por ser lecturas públicas, frecuentes y costosas; y las escrituras que cambian lo que esas lecturas devuelven, para invalidarlas. <code>POST /payments</code>, donde dos servicios tocan el mismo pedido y un candado temporal los ordena.</p>
+        <p>No conviene en las <strong>lecturas personales</strong> (<code>/orders</code>, <code>/payments</code>, <code>/users</code>): cada usuario ve algo distinto, habría una clave por persona con poco acierto y el riesgo real de enseñarle a alguien los datos de otro. Tampoco para llevar el <strong>stock</strong>: es dinero, y un desfase con PostgreSQL vende libros que no existen.</p>
+
+        <h3>Qué endpoints son adecuados para JWT</h3>
+        <p>Todas las escrituras y las lecturas administrativas o personales. Quedan públicas las que solo consultan información: el catálogo, los autores y <code>/health</code>. Tres distinciones importan: <strong>401 no es 403</strong> (no sé quién eres, contra sé quién eres y no puedes); <strong>el dueño sale del token</strong>, no del cuerpo de la petición; y <strong>la interfaz no es la seguridad</strong>: la app oculta las pestañas de administrador, pero quien decide es cada servicio.</p>
+
+        <h3>Cómo debe implementarse</h3>
+        <p>Un secreto por variable de entorno, sin valor por defecto. El algoritmo lo fija el servidor, no el token. Token corto con refresh rotado. TTL coherentes entre sí. En Redis, hashes en vez de tokens. Redis con contraseña y sin puerto publicado. Y, sobre todo, dos políticas de fallo escritas en el código: el caché puede fallar sin que nadie lo note; la autorización tiene que fallar cerrando la puerta.</p>
+
+        <h3>Lo que aprendí</h3>
+        <p>Un JWT «sin estado» deja de serlo en cuanto se quiere poder cerrar sesión: la lista de revocación <em>es</em> estado compartido. Lo que se gana no es eliminar el estado, sino reducirlo a consultar una clave con TTL. También que el caché es fácil de poner y difícil de invalidar bien: el stock aparece en <code>/books</code>, así que un pedido en <code>pedidos-ms</code> tiene que invalidar el caché de <code>libros-ms</code>, y ese acoplamiento no se ve en ningún diagrama de servicios.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+    </footer>
+  </main>
+</body>
+</html>

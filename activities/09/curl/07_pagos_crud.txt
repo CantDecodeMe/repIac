@@ -1,0 +1,143 @@
+# pagos-ms: registra el pago y actualiza el estado del pedido
+# Generado: 2026-10-06T17:02:46-06:00 -- ./scripts/evidencias.sh
+
+>>> POST http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Idempotency-Key: evidencia-1791327763
+    Content-Type: application/json
+
+    {"pedido_id":12,"metodo":"tarjeta","referencia":"REF-1791327763"}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.398253+00:00","creado_en":"2026-10-06T23:02:46.398253+00:00","estado":"aprobado","metodo":"tarjeta","monto":"361.50","pago_id":9,"pedido_id":12,"referencia":"REF-1791327763","usuario_id":34}
+
+
+## El pedido paso a 'pagado'
+
+>>> GET http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.398253+00:00","creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"pagado","lineas":[{"cantidad":3,"isbn":"EVID-EJ09-1791327763","linea_id":13,"precio_unitario":"120.50","subtotal":"361.50","titulo":"Libro de evidencia (editado)"}],"pedido_id":12,"total":"361.50","usuario_id":34}
+
+
+## Reintento con la misma Idempotency-Key: mismo pago, no se cobra dos veces
+
+>>> POST http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Idempotency-Key: evidencia-1791327763
+    Content-Type: application/json
+
+    {"pedido_id":12,"metodo":"tarjeta","referencia":"REF-1791327763"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Idempotent-Replay: true
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.398253+00:00","creado_en":"2026-10-06T23:02:46.398253+00:00","estado":"aprobado","metodo":"tarjeta","monto":"361.50","pago_id":9,"pedido_id":12,"referencia":"REF-1791327763","usuario_id":34}
+
+
+$ redis-cli TTL pago:idem:34:evidencia-1791327763
+    86400
+
+>>> GET http://localhost:5026/payments?format=json&pedido_id=12
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"page":1,"pagos":[{"actualizado_en":"2026-10-06T23:02:46.398253+00:00","creado_en":"2026-10-06T23:02:46.398253+00:00","estado":"aprobado","metodo":"tarjeta","monto":"361.50","pago_id":9,"pedido_id":12,"referencia":"REF-1791327763","usuario_id":34}],"per_page":20,"total":1}
+
+
+>>> GET http://localhost:5026/payments/9?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.398253+00:00","creado_en":"2026-10-06T23:02:46.398253+00:00","estado":"aprobado","metodo":"tarjeta","monto":"361.50","pago_id":9,"pedido_id":12,"referencia":"REF-1791327763","usuario_id":34}
+
+
+## Reembolso (solo admin): el pedido vuelve a 'pendiente'
+
+>>> PATCH http://localhost:5026/payments/9?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"estado":"reembolsado"}
+
+<<< HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Tu rol no tiene permiso para esta operacion."}
+
+
+>>> PATCH http://localhost:5026/payments/9?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"estado":"reembolsado"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.597138+00:00","creado_en":"2026-10-06T23:02:46.398253+00:00","estado":"reembolsado","metodo":"tarjeta","monto":"361.50","pago_id":9,"pedido_id":12,"referencia":"REF-1791327763","usuario_id":34}
+
+
+## Segundo pago, anulado con DELETE
+
+>>> POST http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"pedido_id":12,"metodo":"efectivo"}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.617636+00:00","creado_en":"2026-10-06T23:02:46.617636+00:00","estado":"aprobado","metodo":"efectivo","monto":"361.50","pago_id":10,"pedido_id":12,"referencia":"","usuario_id":34}
+
+
+>>> DELETE http://localhost:5026/payments/10?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.663854+00:00","creado_en":"2026-10-06T23:02:46.617636+00:00","estado":"anulado","metodo":"efectivo","monto":"361.50","pago_id":10,"pedido_id":12,"referencia":"","usuario_id":34}
+
+
+## Cancelar el pedido devuelve el stock
+
+>>> DELETE http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.683748+00:00","creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"cancelado","lineas":[{"cantidad":3,"isbn":"EVID-EJ09-1791327763","linea_id":13,"precio_unitario":"120.50","subtotal":"361.50","titulo":"Libro de evidencia (editado)"}],"pedido_id":12,"total":"361.50","usuario_id":34}
+
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>

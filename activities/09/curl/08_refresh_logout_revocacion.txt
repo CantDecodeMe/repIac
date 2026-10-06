@@ -1,0 +1,138 @@
+# Renovacion antes de caducar, logout y lista de revocacion (jwt:revoked:<jti>)
+# Generado: 2026-10-06T17:02:46-06:00 -- ./scripts/evidencias.sh
+
+## POST /refresh: JWT nuevo, refresh rotado, JWT anterior revocado
+
+>>> POST http://localhost:5021/refresh?format=json
+    Content-Type: application/json
+
+    {"refresh_token":"<oculto>"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"expires_at":1791328966,"expires_in":1200,"refresh_expires_in":604800,"refresh_token":"<oculto>","renovada":true,"role_id":2,"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>","token_type":"Bearer"}
+
+
+## El refresh token usado ya no sirve
+
+>>> POST http://localhost:5021/refresh?format=json
+    Content-Type: application/json
+
+    {"refresh_token":"<oculto>"}
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"El refresh token no es valido o ya expiro."}
+
+
+## El JWT anterior ya esta revocado; el nuevo funciona
+
+>>> GET http://localhost:5025/orders?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="pedidos-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token fue revocado."}
+
+
+>>> GET http://localhost:5025/orders?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"page":1,"pedidos":[{"actualizado_en":"2026-10-06T23:02:46.683748+00:00","articulos":3,"creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"cancelado","pedido_id":12,"total":"361.50","usuario_id":34}],"per_page":1,"total":1}
+
+
+## POST /logout: elimina sesion y refresh, y revoca el JWT vigente
+
+>>> POST http://localhost:5021/logout?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"refresh_token":"<oculto>"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Set-Cookie: auth_sid=<oculta>; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/
+    Vary: Origin
+
+    {"mensaje":"Sesion cerrada."}
+
+
+$ redis-cli EXISTS jwt:revoked:e2fdb6a8072442ebb4d70906b473149e
+    1
+
+$ redis-cli TTL jwt:revoked:e2fdb6a8072442ebb4d70906b473149e
+    1199
+
+## El mismo JWT, todavia sin expirar, es rechazado por TODOS los servicios
+
+>>> GET http://localhost:5023/roles?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="users-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token fue revocado."}
+
+
+>>> GET http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="pedidos-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token fue revocado."}
+
+
+>>> GET http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="pagos-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token fue revocado."}
+
+
+>>> POST http://localhost:5024/authors?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre":"X"}
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="authors-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token fue revocado."}
+
+
+>>> POST http://localhost:5022/books
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {}
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/xml; charset=utf-8
+    WWW-Authenticate: Bearer realm="libros-ms", error="invalid_token"
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <error>El token fue revocado.</error>

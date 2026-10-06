@@ -1,0 +1,72 @@
+# Login: credenciales -> sesion y refresh en Redis + JWT HS256 de 20 minutos
+# Generado: 2026-10-06T17:02:43-06:00 -- ./scripts/evidencias.sh
+
+## Credenciales incorrectas
+
+>>> POST http://localhost:5021/login?format=json
+    Content-Type: application/json
+
+    {"email": "admin@libreria.local", "password": "<oculta>"}
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Credenciales invalidas."}
+
+
+## Credenciales correctas (administrador)
+
+>>> POST http://localhost:5021/login?format=json
+    Content-Type: application/json
+
+    {"email": "admin@libreria.local", "password": "<oculta>"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Set-Cookie: auth_sid=<oculta>; Expires=Wed, 07 Oct 2026 01:02:43 GMT; Max-Age=7200; HttpOnly; Path=/; SameSite=Lax
+    Vary: Origin
+
+    {"email":"admin@libreria.local","expires_at":1791328963,"expires_in":1200,"nombre":"Admin","refresh_expires_in":604800,"refresh_token":"<oculto>","role_id":1,"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>","token_type":"Bearer","usuario_id":19}
+
+
+## Claims del JWT (payload decodificado): user_id, role_id, jti, exp - iat = 1200 s
+    {
+      "iss": "auth-ms",
+      "aud": "libreria",
+      "sub": "19",
+      "user_id": 19,
+      "role_id": 1,
+      "email": "admin@libreria.local",
+      "iat": 1791327763,
+      "exp": 1791328963,
+      "jti": "d8ff7004af5942d3ba0f1a1dac0c580f"
+    }
+
+## Lo que quedo en Redis (solo hashes sha256, nunca el token en claro)
+
+$ redis-cli HGETALL refresh:fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+    user_id
+    19
+    sid
+    568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+
+$ redis-cli TTL refresh:fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+    604800
+
+$ redis-cli HGETALL session:568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+    user_id
+    19
+    role_id
+    1
+    email
+    admin@libreria.local
+    jti
+    d8ff7004af5942d3ba0f1a1dac0c580f
+    jti_exp
+    1791328963
+    refresh
+    fa004801bbeb862b931c553ea9f2a865f6fb504fea6176215258ce8377bf9d69
+
+$ redis-cli TTL session:568fa2e45a17b9aa48e2bdf273c5ce56eefba274a0b185a65e8ce04c99ac90c7
+    7200

@@ -1,0 +1,109 @@
+# users-ms: CRUD de usuarios y roles
+# Generado: 2026-10-06T17:02:45-06:00 -- ./scripts/evidencias.sh
+
+>>> GET http://localhost:5023/roles?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"roles":[{"descripcion":"Administra usuarios, catalogo, autores, pedidos y pagos.","nombre":"admin","role_id":1},{"descripcion":"Consulta el catalogo y gestiona sus propios pedidos y pagos.","nombre":"cliente","role_id":2}]}
+
+
+>>> GET http://localhost:5023/users?format=json&q=evidencia-curl-1791327763@example.com
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"page":1,"per_page":20,"total":1,"usuarios":[{"activo":true,"apellido_materno":"Evidencia","apellido_paterno":"De","creado_en":"2026-10-06T23:02:44.517623+00:00","email":"evidencia-curl-1791327763@example.com","nombre":"Cliente","rol":"cliente","role_id":2,"usuario_id":34}]}
+
+
+>>> GET http://localhost:5023/users/34?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"activo":true,"apellido_materno":"Evidencia","apellido_paterno":"De","creado_en":"2026-10-06T23:02:44.517623+00:00","email":"evidencia-curl-1791327763@example.com","nombre":"Cliente","rol":"cliente","role_id":2,"usuario_id":34}
+
+
+>>> PATCH http://localhost:5023/users/34?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre":"Cliente Editado"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"activo":true,"apellido_materno":"Evidencia","apellido_paterno":"De","creado_en":"2026-10-06T23:02:44.517623+00:00","email":"evidencia-curl-1791327763@example.com","nombre":"Cliente Editado","rol":"cliente","role_id":2,"usuario_id":34}
+
+
+>>> PUT http://localhost:5023/users/34?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Cliente", "apellido_paterno": "Reemplazado", "apellido_materno": "Total", "email": "evidencia-curl-1791327763@example.com"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"activo":true,"apellido_materno":"Total","apellido_paterno":"Reemplazado","creado_en":"2026-10-06T23:02:44.517623+00:00","email":"evidencia-curl-1791327763@example.com","nombre":"Cliente","rol":"cliente","role_id":2,"usuario_id":34}
+
+
+## Mismo recurso en XML (formato por defecto)
+
+>>> GET http://localhost:5023/users/34
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <usuario><usuario_id>34</usuario_id><nombre>Cliente</nombre><apellido_paterno>Reemplazado</apellido_paterno><apellido_materno>Total</apellido_materno><email>evidencia-curl-1791327763@example.com</email><activo>true</activo><role_id>2</role_id><rol>cliente</rol><creado_en>2026-10-06T23:02:44.517623+00:00</creado_en></usuario>
+
+## Email duplicado -> 409
+
+>>> POST http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Otro", "apellido_paterno": "A", "apellido_materno": "B", "email": "evidencia-curl-1791327763@example.com", "password": "<oculta>"}
+
+<<< HTTP/1.1 409 CONFLICT
+    Content-Type: application/json
+    Vary: Origin
+
+    {"campo":"email","error":"Ya existe una cuenta con ese email."}
+
+
+## Alta y baja de un usuario temporal (DELETE -> 204)
+
+>>> POST http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Temporal", "apellido_paterno": "A", "apellido_materno": "B", "email": "temporal-1791327763@example.com", "password": "<oculta>"}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"activo":true,"apellido_materno":"B","apellido_paterno":"A","creado_en":"2026-10-06T23:02:45.522930+00:00","email":"temporal-1791327763@example.com","nombre":"Temporal","rol":"cliente","role_id":2,"usuario_id":36}
+
+
+>>> DELETE http://localhost:5023/users/36?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 204 NO CONTENT
+    Content-Type: text/html; charset=utf-8
+    Vary: Origin
+
+

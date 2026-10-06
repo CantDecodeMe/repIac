@@ -1,0 +1,112 @@
+# authors-ms: CRUD de autores y relacion con libros
+# Generado: 2026-10-06T17:02:45-06:00 -- ./scripts/evidencias.sh
+
+>>> POST http://localhost:5024/authors?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Autora Evidencia 1791327763", "biografia": "Creada con curl"}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"biografia":"Creada con curl","foto":null,"libros":[],"nombre":"Autora Evidencia 1791327763"}
+
+
+## Lecturas publicas (sin token)
+
+>>> GET http://localhost:5024/authors?format=json&q=Evidencia%201791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autores":[{"autor_id":17,"biografia":"Creada con curl","foto":null,"nombre":"Autora Evidencia 1791327763","total_libros":0}],"page":1,"per_page":20,"total":1}
+
+
+>>> GET http://localhost:5024/authors/17?format=json
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"biografia":"Creada con curl","foto":null,"libros":[],"nombre":"Autora Evidencia 1791327763"}
+
+
+## Relacion autor-libro
+
+>>> PUT http://localhost:5024/authors/17/books/EVID-EJ09-1791327763?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"biografia":"Creada con curl","foto":null,"libros":[{"isbn":"EVID-EJ09-1791327763","titulo":"Libro de evidencia (editado)"}],"nombre":"Autora Evidencia 1791327763"}
+
+
+>>> GET http://localhost:5024/authors/17/books?format=json
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"libros":[{"isbn":"EVID-EJ09-1791327763","titulo":"Libro de evidencia (editado)"}]}
+
+
+## El cambio invalida el cache de libros-ms: /books ya muestra a la autora
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors><author>Autora Evidencia 1791327763</author></authors><concepts /></book>
+
+>>> PATCH http://localhost:5024/authors/17?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"biografia":"Editada con PATCH"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"biografia":"Editada con PATCH","foto":null,"libros":[{"isbn":"EVID-EJ09-1791327763","titulo":"Libro de evidencia (editado)"}],"nombre":"Autora Evidencia 1791327763"}
+
+
+>>> PUT http://localhost:5024/authors/17?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Autora Reemplazada 1791327763"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autor_id":17,"biografia":null,"foto":null,"libros":[{"isbn":"EVID-EJ09-1791327763","titulo":"Libro de evidencia (editado)"}],"nombre":"Autora Reemplazada 1791327763"}
+
+
+>>> DELETE http://localhost:5024/authors/17/books/EVID-EJ09-1791327763?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 204 NO CONTENT
+    Content-Type: text/html; charset=utf-8
+    Vary: Origin
+
+
+
+>>> DELETE http://localhost:5024/authors/17?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 204 NO CONTENT
+    Content-Type: text/html; charset=utf-8
+    Vary: Origin
+
+

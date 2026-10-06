@@ -1,0 +1,123 @@
+# Redis detenido: lecturas cacheadas siguen; sesion, revocacion y autorizacion fallan cerrado
+# Generado: 2026-10-06T17:02:47-06:00 -- ./scripts/evidencias.sh
+
+$ docker stop libreria-redis
+
+## Lecturas publicas: 200, X-Cache: BYPASS (responde PostgreSQL)
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: BYPASS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>
+
+>>> GET http://localhost:5024/authors?format=json&per_page=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autores":[{"autor_id":8,"biografia":"Aviador y escritor franc\u00e9s, autor de El principito.","foto":"/uploads/seed/autor8.svg","nombre":"Antoine de Saint-Exup\u00e9ry","total_libros":1}],"page":1,"per_page":1,"total":9}
+
+
+## Login: 503 (no se puede guardar la sesion)
+
+>>> POST http://localhost:5021/login?format=json
+    Content-Type: application/json
+
+    {"email": "admin@libreria.local", "password": "<oculta>"}
+
+<<< HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/json
+    Retry-After: 5
+    Vary: Origin
+
+    {"error":"El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo."}
+
+
+## JWT VALIDO, pero no se puede consultar la revocacion: 503, nunca 200
+
+>>> GET http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/json
+    Retry-After: 5
+    Vary: Origin
+
+    {"error":"El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo."}
+
+
+>>> PATCH http://localhost:5022/books/EVID-EJ09-1791327763
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"stock":9}
+
+<<< HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/xml; charset=utf-8
+    Retry-After: 5
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <error>El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo.</error>
+
+>>> GET http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/json
+    Retry-After: 5
+    Vary: Origin
+
+    {"error":"El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo."}
+
+
+>>> GET http://localhost:5026/payments?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 503 SERVICE UNAVAILABLE
+    Content-Type: application/json
+    Retry-After: 5
+    Vary: Origin
+
+    {"error":"El servicio de sesiones y autorizacion no esta disponible. Intenta de nuevo."}
+
+
+## /health lo reporta
+
+>>> GET http://localhost:5025/health?format=json
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"db":"ok","redis":"error","status":"degradado"}
+
+
+$ docker start libreria-redis
+
+## Redis de vuelta: los servicios se recuperan solos y la sesion sigue (AOF)
+
+>>> GET http://localhost:5025/health?format=json
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"db":"ok","redis":"ok","status":"ok"}
+
+
+>>> GET http://localhost:5023/users?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"page":1,"per_page":1,"total":23,"usuarios":[{"activo":true,"apellido_materno":"Diaz","apellido_paterno":"Perez","creado_en":"2026-09-18T22:47:40.422883+00:00","email":"ana@example.com","nombre":"Ana","rol":"cliente","role_id":2,"usuario_id":1}]}
+

@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ejercicio 09 · Microservicios, JWT y Redis</title>
+<style>
+  :root {
+    --fondo: #f4f1ea; --panel: #fffdf8; --tinta: #1d2430; --tenue: #647084; --linea: #d9d2c3;
+    --cliente: #3b5b92; --servicio: #2f6f62; --redis: #c2412d; --pg: #7a5a2b;
+    --ok: #2e8b57; --aviso: #c98a12; --error: #c2412d; --paquete: #1d2430;
+    --codigo: #f0ebdf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #14181f; --panel: #1b212b; --tinta: #e8e4da; --tenue: #9aa4b5; --linea: #313a48;
+      --cliente: #7fa3e0; --servicio: #6fc3b0; --redis: #f0806c; --pg: #d9b06a;
+      --ok: #62c48f; --aviso: #e9b949; --error: #f0806c; --paquete: #e8e4da;
+      --codigo: #232b37;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+         font: 15px/1.5 "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+  header { padding: 20px 24px 8px; max-width: 1280px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 1.45rem; letter-spacing: .01em; }
+  header p { margin: 4px 0 0; color: var(--tenue); max-width: 78ch; }
+  main { max-width: 1280px; margin: 0 auto; padding: 8px 24px 32px;
+         display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; padding: 8px 16px 24px; } }
+  .tarjeta { background: var(--panel); border: 1px solid var(--linea); border-radius: 10px; }
+  .escenas { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--linea); }
+  .escenas button, .controles button {
+    font: 600 12.5px/1 ui-sans-serif, system-ui, sans-serif; color: var(--tinta); background: transparent;
+    border: 1px solid var(--linea); border-radius: 999px; padding: 7px 11px; cursor: pointer; }
+  .escenas button[aria-pressed="true"] { background: var(--tinta); color: var(--panel); border-color: var(--tinta); }
+  .escenas button:focus-visible, .controles button:focus-visible, input:focus-visible { outline: 2px solid var(--cliente); outline-offset: 2px; }
+  svg { display: block; width: 100%; height: auto; }
+  .nodo rect { fill: var(--panel); stroke-width: 2; transition: stroke-width .2s, opacity .3s; }
+  .nodo text { font: 600 13px ui-sans-serif, system-ui, sans-serif; fill: var(--tinta); }
+  .nodo .sub { font-weight: 400; font-size: 10.5px; fill: var(--tenue); }
+  .nodo.activo rect { stroke-width: 4; }
+  .nodo.caido { opacity: .35; }
+  .nodo.caido rect { stroke-dasharray: 6 5; }
+  .c-cliente rect { stroke: var(--cliente); } .c-servicio rect { stroke: var(--servicio); }
+  .c-redis rect { stroke: var(--redis); } .c-pg rect { stroke: var(--pg); }
+  .arista { stroke: var(--linea); stroke-width: 1.5; fill: none; }
+  .arista.viva { stroke: var(--paquete); stroke-width: 2.5; stroke-dasharray: 7 6; animation: fluir 1s linear infinite; }
+  @keyframes fluir { to { stroke-dashoffset: -26; } }
+  #paquete circle { fill: var(--paquete); }
+  #paquete rect { fill: var(--paquete); }
+  #paquete text { font: 600 11px ui-monospace, Menlo, Consolas, monospace; fill: var(--panel); }
+  .zona { font: 600 10px ui-sans-serif, system-ui, sans-serif; fill: var(--tenue); letter-spacing: .12em; }
+  .controles { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--linea); flex-wrap: wrap; }
+  .controles label { font: 12px ui-sans-serif, system-ui, sans-serif; color: var(--tenue); display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  #progreso { flex: 1 1 140px; accent-color: var(--servicio); }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  .paso { padding: 16px 18px; }
+  .paso .num { font: 600 11px ui-sans-serif, system-ui, sans-serif; color: var(--tenue); letter-spacing: .1em; text-transform: uppercase; }
+  .paso h2 { margin: 4px 0 8px; font-size: 1.15rem; line-height: 1.25; }
+  .paso p { margin: 0 0 10px; }
+  pre { margin: 0; padding: 10px 12px; background: var(--codigo); border-radius: 8px; overflow-x: auto;
+        font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .veredicto { display: inline-block; margin-top: 10px; font: 600 12px ui-sans-serif, system-ui, sans-serif;
+               padding: 4px 9px; border-radius: 6px; border: 1.5px solid currentColor; }
+  .ok { color: var(--ok); } .aviso { color: var(--aviso); } .error { color: var(--error); }
+  .claves { padding: 12px 14px 14px; }
+  .claves h3 { margin: 0 0 8px; font: 600 12px ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--redis); }
+  table { width: 100%; border-collapse: collapse; font: 11.5px/1.45 ui-monospace, Menlo, Consolas, monospace; }
+  th { text-align: left; font: 600 10.5px ui-sans-serif, system-ui, sans-serif; color: var(--tenue); padding: 0 6px 4px 0; }
+  td { padding: 3px 6px 3px 0; border-top: 1px solid var(--linea); vertical-align: top; word-break: break-all; }
+  td:last-child { white-space: nowrap; color: var(--tenue); }
+  tr.nueva td { animation: aparecer .9s ease-out; }
+  @keyframes aparecer { from { background: color-mix(in srgb, var(--redis) 28%, transparent); } to { background: transparent; } }
+  .vacio { color: var(--tenue); font: italic 13px Georgia, serif; }
+  footer { max-width: 1280px; margin: 0 auto; padding: 0 24px 28px; color: var(--tenue); font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { .arista.viva, tr.nueva td { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cómo viaja una petición: microservicios, JWT y Redis</h1>
+  <p>Ejercicio 09 · Integración de Aplicaciones Computacionales. Siete escenas, paso a paso: quién le habla a quién,
+     qué lleva el mensaje y qué queda guardado en Redis en cada momento. PostgreSQL sigue siendo la fuente de verdad.</p>
+</header>
+
+<main>
+  <section class="tarjeta" aria-label="Animación del sistema">
+    <div class="escenas" id="escenas" role="group" aria-label="Escenas"></div>
+    <svg viewBox="0 0 980 560" role="img" aria-labelledby="titulo-svg">
+      <title id="titulo-svg">Cliente, seis microservicios, Redis y PostgreSQL</title>
+      <text class="zona" x="30" y="24">CLIENTE</text>
+      <text class="zona" x="380" y="24">MICROSERVICIOS · HTTPS POR EL TÚNEL</text>
+      <text class="zona" x="760" y="24">ESTADO COMPARTIDO</text>
+      <g id="aristas"></g>
+      <g id="nodos"></g>
+      <g id="paquete" visibility="hidden">
+        <rect x="-60" y="-28" width="120" height="18" rx="5"/>
+        <text x="0" y="-15" text-anchor="middle" id="paquete-texto"></text>
+        <circle r="7"/>
+      </g>
+    </svg>
+    <div class="controles">
+      <button id="anterior" aria-label="Paso anterior">◀ Anterior</button>
+      <button id="reproducir">▶ Reproducir</button>
+      <button id="siguiente" aria-label="Paso siguiente">Siguiente ▶</button>
+      <input id="progreso" type="range" min="0" value="0" aria-label="Paso actual">
+      <label>Velocidad
+        <select id="velocidad">
+          <option value="1.6">lenta</option><option value="1" selected>normal</option><option value="0.55">rápida</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <aside>
+    <div class="tarjeta paso" aria-live="polite">
+      <div class="num" id="paso-num"></div>
+      <h2 id="paso-titulo"></h2>
+      <p id="paso-texto"></p>
+      <pre id="paso-codigo"></pre>
+      <span class="veredicto" id="paso-veredicto" hidden></span>
+    </div>
+    <div class="tarjeta claves">
+      <h3>Redis ahora mismo</h3>
+      <div id="claves"></div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  Atajos: ← → cambian de paso, espacio reproduce o pausa. Las claves y los TTL son los del sistema real
+  (<code>session:</code> 2 h, <code>refresh:</code> 7 días, JWT 20 min, caché 60–120 s).
+</footer>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- escenario
+const NODOS = {
+  cliente: { x: 30,  y: 235, w: 160, h: 90,  clase: "c-cliente",  t: "App Python Tk", s: ["guarda JWT + refresh", "nunca toca Redis ni la BD"] },
+  auth:    { x: 380, y: 34,  w: 190, h: 62,  clase: "c-servicio", t: "auth-ms · login", s: ["emite el JWT (HS256)"] },
+  libros:  { x: 380, y: 118, w: 190, h: 62,  clase: "c-servicio", t: "libros-ms · books", s: ["GET público y cacheado"] },
+  users:   { x: 380, y: 202, w: 190, h: 62,  clase: "c-servicio", t: "users-ms", s: ["usuarios y roles"] },
+  authors: { x: 380, y: 286, w: 190, h: 62,  clase: "c-servicio", t: "authors-ms", s: ["autores ↔ libros"] },
+  pedidos: { x: 380, y: 370, w: 190, h: 62,  clase: "c-servicio", t: "pedidos-ms", s: ["pedidos, líneas, stock"] },
+  pagos:   { x: 380, y: 454, w: 190, h: 62,  clase: "c-servicio", t: "pagos-ms", s: ["pagos → estado del pedido"] },
+  redis:   { x: 760, y: 70,  w: 190, h: 150, clase: "c-redis",    t: "Redis", s: ["sesiones · refresh tokens", "jwt:revoked:<jti>", "caché books:*", "candados · todo con TTL", "REDIS_URL con contraseña"] },
+  pg:      { x: 760, y: 330, w: 190, h: 150, clase: "c-pg",       t: "PostgreSQL", s: ["fuente de verdad", "auth.* · public.libros", "pedidos.* · pagos.*", "un rol mínimo por servicio"] },
+};
+const SERVICIOS = ["auth", "libros", "users", "authors", "pedidos", "pagos"];
+
+const SESION = ["session:9f2c…", "hash user_id=7 role_id=2 jti=a1b2…", "7200 s"];
+const REFRESH = ["refresh:51de…", "hash user_id=7 sid=9f2c…", "604800 s"];
+const INDICE = ["user:sessions:7", "set {9f2c…}", "604800 s"];
+
+// Cada paso: de → a, etiqueta del mensaje, y qué cambia en Redis.
+const ESCENAS = [
+  { nombre: "1 · Login", pasos: [
+    { de: "cliente", a: "auth", msg: "POST /login", titulo: "El usuario envía sus credenciales",
+      texto: "Viajan por HTTPS (Cloudflare termina TLS). La contraseña nunca se escribe en un log.",
+      codigo: 'POST /login\n{"email": "ana@example.com", "password": "••••••••"}' },
+    { de: "auth", a: "redis", msg: "GET intentos", titulo: "¿Demasiados intentos fallidos?",
+      texto: "Antes de tocar la base, auth-ms consulta en Redis el contador de fallos de ese correo. Con 5 fallos en 15 minutos responde 429.",
+      codigo: "GET login:intentos:<sha256(email)>   → (nil)" },
+    { de: "auth", a: "pg", msg: "SELECT usuario", titulo: "PostgreSQL valida la identidad",
+      texto: "Se lee el usuario y su rol; la contraseña se compara contra el hash PBKDF2 en tiempo constante. La identidad vive en PostgreSQL, no en Redis.",
+      codigo: "SELECT usuario_id, password_hash, activo, role_id\n  FROM auth.usuarios WHERE lower(email) = lower($1)" },
+    { de: "auth", a: "auth", msg: "firma HS256", titulo: "auth-ms firma el JWT",
+      texto: "Con JWT_SECRET_KEY (variable de entorno, la misma en los seis servicios). Dura 20 minutos y lleva un identificador único, el jti.",
+      codigo: '{"iss":"auth-ms", "aud":"libreria", "user_id":7, "role_id":2,\n "iat":1791327728, "exp":1791328928, "jti":"a1b2c3…"}' },
+    { de: "auth", a: "redis", msg: "HSET + EXPIRE", titulo: "Sesión y refresh token, a Redis con TTL",
+      texto: "Solo se guarda el sha256 del token de sesión y del refresh token. Si alguien leyera Redis no obtendría ninguna credencial utilizable.",
+      codigo: "HSET session:9f2c… user_id 7 role_id 2 jti a1b2…   EXPIRE 7200\nHSET refresh:51de… user_id 7 sid 9f2c…            EXPIRE 604800\nSADD user:sessions:7 9f2c…",
+      mas: [SESION, REFRESH, INDICE] },
+    { de: "auth", a: "cliente", msg: "200 + JWT", titulo: "El cliente recibe sus tres credenciales",
+      texto: "El JWT (corta vida) para los demás servicios, el refresh token para renovarlo y la cookie de sesión.",
+      codigo: 'HTTP/1.1 200 OK\nSet-Cookie: auth_sid=…; HttpOnly; SameSite=Lax\n{"token":"eyJ…", "expires_in":1200, "refresh_token":"…", "role_id":2}',
+      veredicto: ["ok", "Sesión abierta"] },
+  ]},
+  { nombre: "2 · Caché de /books", pasos: [
+    { de: "cliente", a: "libros", msg: "GET /books", titulo: "Lectura pública: sin token",
+      texto: "Consultar el catálogo no modifica nada, así que no exige JWT.", codigo: "GET /books?title=cien&page=1" },
+    { de: "libros", a: "redis", msg: "GET books:list", titulo: "Primero se busca en Redis",
+      texto: "La clave resume los filtros ordenados con sha1: las mismas preguntas comparten respuesta.",
+      codigo: "GET books:list:3fa9…   → (nil)   ← MISS" },
+    { de: "libros", a: "pg", msg: "SELECT libros", titulo: "MISS: la respuesta sale de PostgreSQL",
+      texto: "Una consulta con cuatro tablas (libros, categorías, autores, conceptos). Es la parte cara que el caché ahorra.",
+      codigo: "SELECT l.*, cat.nombre, json_agg(a.nombre) … FROM libros l …" },
+    { de: "libros", a: "redis", msg: "SET … EX 60", titulo: "Se guarda con TTL corto",
+      texto: "60 segundos: si una invalidación fallara, el dato viejo desaparece solo en un minuto.",
+      codigo: "SET books:list:3fa9… '<books total=\"1\">…' EX 60",
+      mas: [["books:list:3fa9…", "XML del listado", "60 s"]] },
+    { de: "libros", a: "cliente", msg: "200 MISS", titulo: "Respuesta al cliente",
+      texto: "La cabecera X-Cache deja ver de dónde salió.", codigo: "HTTP/1.1 200 OK\nX-Cache: MISS", veredicto: ["aviso", "MISS · fue a PostgreSQL"] },
+    { de: "cliente", a: "libros", msg: "GET /books", titulo: "La misma consulta, otra vez",
+      texto: "Otro usuario (o el mismo) pide lo mismo unos segundos después.", codigo: "GET /books?title=cien&page=1" },
+    { de: "libros", a: "redis", msg: "GET books:list", titulo: "HIT: Redis ya la tiene",
+      texto: "PostgreSQL ni se entera de esta petición.", codigo: "GET books:list:3fa9…   → '<books total=\"1\">…'   ← HIT" },
+    { de: "libros", a: "cliente", msg: "200 HIT", titulo: "Respuesta directa desde memoria",
+      texto: "Mismo XML, sin tocar la base.", codigo: "HTTP/1.1 200 OK\nX-Cache: HIT", veredicto: ["ok", "HIT · sin tocar PostgreSQL"] },
+  ]},
+  { nombre: "3 · Escritura con JWT", pasos: [
+    { de: "cliente", a: "libros", msg: "PATCH + Bearer", titulo: "Una escritura lleva el JWT",
+      texto: "POST, PUT, PATCH y DELETE exigen Authorization: Bearer en todos los servicios.",
+      codigo: 'PATCH /books/978-84-376-0494-7\nAuthorization: Bearer eyJhbGciOiJIUzI1NiJ9.…\n{"precio": 349.0}' },
+    { de: "libros", a: "libros", msg: "verifica firma", titulo: "Validación local: firma, algoritmo, exp, claims",
+      texto: "libros-ms no llama a auth-ms: recalcula el HMAC con el secreto compartido. El algoritmo está fijo a HS256, así que un token «alg: none» se rechaza.",
+      codigo: "jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'],\n           issuer='auth-ms', audience='libreria',\n           require=[exp, iat, jti, user_id, role_id])" },
+    { de: "libros", a: "redis", msg: "EXISTS revoked", titulo: "¿Ese jti fue revocado?",
+      texto: "La firma dice que el token es auténtico; solo Redis sabe si sigue vigente. Esta consulta ocurre en cada petición protegida de cada servicio.",
+      codigo: "EXISTS jwt:revoked:a1b2c3…   → 0" },
+    { de: "libros", a: "libros", msg: "role_id = 1?", titulo: "Permisos: 403 si el rol no alcanza",
+      texto: "Modificar el catálogo es administrativo. Un cliente (role_id 2) recibiría 403 aquí; el token es válido pero no autoriza.",
+      codigo: "role_id del token: 1 (admin)   → continúa" },
+    { de: "libros", a: "pg", msg: "UPDATE libros", titulo: "El cambio se escribe en PostgreSQL",
+      texto: "La fuente de verdad se actualiza primero.", codigo: "UPDATE libros SET precio = $1 WHERE libro_id = $2" },
+    { de: "libros", a: "redis", msg: "UNLINK books:*", titulo: "Invalidación del caché",
+      texto: "Se borra la clave del libro y todos los listados (con SCAN, nunca KEYS). La próxima lectura será MISS y traerá el precio nuevo.",
+      codigo: "SCAN 0 MATCH books:list:*\nUNLINK books:list:3fa9… books:978-84-376-0494-7",
+      menos: ["books:"] },
+    { de: "libros", a: "cliente", msg: "200 OK", titulo: "Escritura confirmada",
+      texto: "Autenticada, autorizada, persistida y con el caché limpio.", codigo: "HTTP/1.1 200 OK", veredicto: ["ok", "Autorizado y guardado"] },
+  ]},
+  { nombre: "4 · Pedido y pago", pasos: [
+    { de: "cliente", a: "pedidos", msg: "POST /orders", titulo: "El cliente crea un pedido",
+      texto: "El dueño del pedido es el user_id del token, no un campo del cuerpo.",
+      codigo: 'POST /orders\nAuthorization: Bearer eyJ…\n{"lineas": [{"isbn": "978-84-376-0494-7", "cantidad": 2}]}' },
+    { de: "pedidos", a: "redis", msg: "EXISTS revoked", titulo: "Mismo control, otro servicio",
+      texto: "pedidos-ms valida la firma con el mismo secreto y consulta la misma lista de revocación.", codigo: "EXISTS jwt:revoked:a1b2c3…   → 0" },
+    { de: "pedidos", a: "pg", msg: "crear_pedido()", titulo: "Pedido, líneas y stock en una transacción",
+      texto: "Una función de PostgreSQL bloquea el libro (FOR UPDATE), comprueba el stock, lo descuenta y calcula el total. Todo o nada.",
+      codigo: "SELECT pedidos.crear_pedido(7, '[{\"isbn\":\"978-…\",\"cantidad\":2}]')" },
+    { de: "pedidos", a: "redis", msg: "UNLINK books:*", titulo: "El stock cambió: se invalida el caché",
+      texto: "/books muestra el stock, así que sus entradas en caché ya no son ciertas.", codigo: "UNLINK books:list:* books:978-84-376-0494-7" },
+    { de: "pedidos", a: "cliente", msg: "201 pedido", titulo: "Pedido creado, pendiente de pago",
+      texto: "", codigo: 'HTTP/1.1 201 Created\n{"pedido_id": 42, "estado": "pendiente", "total": "698.00"}' },
+    { de: "cliente", a: "pagos", msg: "POST /payments", titulo: "El cliente paga el pedido",
+      texto: "Manda una Idempotency-Key: si la red falla y reintenta, no se cobra dos veces.",
+      codigo: 'POST /payments\nAuthorization: Bearer eyJ…\nIdempotency-Key: 6f1d0c9e…\n{"pedido_id": 42, "metodo": "tarjeta"}' },
+    { de: "pagos", a: "redis", msg: "SET lock NX", titulo: "Candado temporal sobre el pedido",
+      texto: "Coordinación entre servicios: mientras se cobra, pedidos-ms no puede cambiarle las líneas. El TTL de 10 s lo libera si el proceso muere.",
+      codigo: "EXISTS jwt:revoked:a1b2c3…        → 0\nSET lock:pedido:42 <token> NX EX 10 → OK",
+      mas: [["lock:pedido:42", "token del candado", "10 s"]] },
+    { de: "pagos", a: "pg", msg: "registrar_pago()", titulo: "Pago y cambio de estado, atómicos",
+      texto: "La función inserta el pago y pasa el pedido a «pagado» en la misma transacción.",
+      codigo: "SELECT pagos.registrar_pago(42, 7, NULL, 'tarjeta', '')" },
+    { de: "pagos", a: "redis", msg: "SET idem · DEL lock", titulo: "Se recuerda la clave y se suelta el candado",
+      texto: "El candado se libera comparando el token (script Lua): nunca se borra el candado de otro.",
+      codigo: "SET pago:idem:7:6f1d0c9e… 15 EX 86400\nEVAL «si es mío, DEL» lock:pedido:42",
+      mas: [["pago:idem:7:6f1d…", "pago_id = 15", "86400 s"]], menos: ["lock:"] },
+    { de: "pagos", a: "cliente", msg: "201 pago", titulo: "Pago aprobado",
+      texto: "", codigo: 'HTTP/1.1 201 Created\n{"pago_id": 15, "estado": "aprobado", "monto": "698.00"}', veredicto: ["ok", "Pedido pagado"] },
+  ]},
+  { nombre: "5 · Renovar el JWT", pasos: [
+    { de: "cliente", a: "cliente", msg: "quedan < 60 s", titulo: "El JWT está por caducar",
+      texto: "La app revisa el exp antes de cada petición. Si falta menos de un minuto, renueva primero.",
+      codigo: "exp − ahora = 48 s   → renovar antes de usarlo" },
+    { de: "cliente", a: "auth", msg: "POST /refresh", titulo: "Se presenta el refresh token",
+      texto: "Viaja en el cuerpo, nunca en la URL.", codigo: 'POST /refresh\n{"refresh_token": "…"}' },
+    { de: "auth", a: "redis", msg: "HGETALL refresh", titulo: "Redis confirma que el refresh existe",
+      texto: "Si la sesión se cerró o el refresh ya se usó, aquí no hay nada y la respuesta es 401.",
+      codigo: "HGETALL refresh:51de…   → user_id 7, sid 9f2c…" },
+    { de: "auth", a: "pg", msg: "SELECT usuario", titulo: "¿Sigue activo? ¿Cambió su rol?",
+      texto: "El JWT nuevo se arma con datos frescos de PostgreSQL.", codigo: "SELECT activo, role_id FROM auth.usuarios WHERE usuario_id = 7" },
+    { de: "auth", a: "redis", msg: "rotar + revocar", titulo: "Rotación: lo viejo deja de servir",
+      texto: "El refresh usado se borra y nace otro; el JWT anterior entra a la lista de revocación por los segundos que le quedaban.",
+      codigo: "DEL refresh:51de…\nHSET refresh:c07a… user_id 7 sid 9f2c…   EXPIRE 604800\nHSET session:9f2c… jti d4e5…             EXPIRE 7200\nSET jwt:revoked:a1b2c3… 1 EX 48",
+      menos: ["refresh:51de", "session:"],
+      mas: [["session:9f2c…", "hash user_id=7 role_id=2 jti=d4e5…", "7200 s"], ["refresh:c07a…", "hash user_id=7 sid=9f2c…", "604800 s"], ["jwt:revoked:a1b2c3…", "1", "48 s"]] },
+    { de: "auth", a: "cliente", msg: "200 JWT nuevo", titulo: "Otros 20 minutos",
+      texto: "El usuario no notó nada.", codigo: '{"token":"eyJ…(jti d4e5…)", "expires_in":1200, "refresh_token":"…nuevo…"}', veredicto: ["ok", "Renovado antes de caducar"] },
+  ]},
+  { nombre: "6 · Logout y revocación", pasos: [
+    { de: "cliente", a: "auth", msg: "POST /logout", titulo: "El usuario cierra sesión",
+      texto: "", codigo: 'POST /logout\nAuthorization: Bearer eyJ…(jti d4e5…)\n{"refresh_token": "…"}' },
+    { de: "auth", a: "redis", msg: "DEL + revocar", titulo: "Se eliminan ambos y se revoca el JWT",
+      texto: "Al JWT le quedaban ~19 minutos de vida. Sin esta clave seguiría siendo válido todo ese tiempo.",
+      codigo: "DEL session:9f2c… refresh:c07a…\nSREM user:sessions:7 9f2c…\nSET jwt:revoked:d4e5… 1 EX 1152",
+      menos: ["session:", "refresh:", "user:sessions"], mas: [["jwt:revoked:d4e5…", "1", "1152 s"]] },
+    { de: "auth", a: "cliente", msg: "200", titulo: "Sesión cerrada", texto: "", codigo: '{"mensaje": "Sesion cerrada."}' },
+    { de: "cliente", a: "users", msg: "GET + JWT viejo", titulo: "Alguien reutiliza el JWT copiado",
+      texto: "El token no ha expirado y su firma es perfecta.", codigo: "GET /users/7\nAuthorization: Bearer eyJ…(jti d4e5…)" },
+    { de: "users", a: "redis", msg: "EXISTS revoked", titulo: "Redis dice que está revocado",
+      texto: "users-ms nunca habló con auth-ms; le basta la clave compartida en Redis.", codigo: "EXISTS jwt:revoked:d4e5…   → 1" },
+    { de: "users", a: "cliente", msg: "401", titulo: "Rechazado en todos los servicios",
+      texto: "Lo mismo responderían libros, authors, pedidos y pagos.",
+      codigo: 'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer realm="users-ms", error="invalid_token"\n{"error": "El token fue revocado."}', veredicto: ["error", "401 · token revocado"] },
+  ]},
+  { nombre: "7 · Redis caído", pasos: [
+    { de: "redis", a: "redis", msg: "✕ sin conexión", titulo: "Redis deja de responder", caido: true,
+      texto: "¿Qué debe seguir funcionando y qué no? Depende de qué tan grave sea equivocarse.", codigo: "docker stop libreria-redis" },
+    { de: "cliente", a: "libros", msg: "GET /books", titulo: "Lectura pública", caido: true, texto: "", codigo: "GET /books" },
+    { de: "libros", a: "redis", msg: "✕ timeout 0.5 s", titulo: "El caché no contesta", caido: true,
+      texto: "El error se cuenta en /metrics y el caché se salta durante unos segundos para no pagar el timeout en cada petición.",
+      codigo: "GET books:list:…   → ConnectionError" },
+    { de: "libros", a: "pg", msg: "SELECT libros", titulo: "Se responde desde PostgreSQL", caido: true,
+      texto: "El caché es opcional: perderlo cuesta velocidad, no corrección.", codigo: "SELECT … FROM libros …" },
+    { de: "libros", a: "cliente", msg: "200 BYPASS", titulo: "El catálogo sigue disponible", caido: true,
+      texto: "", codigo: "HTTP/1.1 200 OK\nX-Cache: BYPASS", veredicto: ["ok", "Degradado, pero funciona"] },
+    { de: "cliente", a: "pedidos", msg: "GET + JWT válido", titulo: "Petición protegida, token correcto", caido: true,
+      texto: "", codigo: "GET /orders\nAuthorization: Bearer eyJ…(firma válida, sin expirar)" },
+    { de: "pedidos", a: "redis", msg: "✕ EXISTS revoked", titulo: "No se puede saber si fue revocado", caido: true,
+      texto: "Aceptarlo «por si acaso» volvería válido cualquier token robado y ya revocado.", codigo: "EXISTS jwt:revoked:…   → ConnectionError" },
+    { de: "pedidos", a: "cliente", msg: "503", titulo: "Fallo cerrado: 503, nunca 200", caido: true,
+      texto: "Login, refresh, logout y toda ruta con JWT responden igual. La app pinta el semáforo de Redis en rojo y los servicios en amarillo.",
+      codigo: "HTTP/1.1 503 Service Unavailable\nRetry-After: 5\n{\"error\": \"El servicio de sesiones y autorizacion no esta disponible.\"}", veredicto: ["error", "503 · falla de forma segura"] },
+    { de: "redis", a: "redis", msg: "✓ de vuelta", titulo: "Redis regresa",
+      texto: "Los servicios se reconectan solos, sin reiniciarse. Las sesiones persisten gracias al AOF (appendonly).", codigo: "docker start libreria-redis", veredicto: ["ok", "Recuperación automática"] },
+  ]},
+];
+
+// ---------------------------------------------------------------- lienzo
+const SVG = "http://www.w3.org/2000/svg";
+const el = (nombre, attrs = {}, texto) => {
+  const e = document.createElementNS(SVG, nombre);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+};
+const centro = (id) => ({ x: NODOS[id].x + NODOS[id].w / 2, y: NODOS[id].y + NODOS[id].h / 2 });
+// Punto del borde del nodo `id` mirando hacia `hacia`: las líneas no cruzan las cajas.
+function borde(id, hacia) {
+  const n = NODOS[id], c = centro(id), o = centro(hacia);
+  const dx = o.x - c.x, dy = o.y - c.y;
+  const escala = Math.min(Math.abs((n.w / 2) / (dx || 1e-6)), Math.abs((n.h / 2) / (dy || 1e-6)));
+  return { x: c.x + dx * escala, y: c.y + dy * escala };
+}
+
+const gAristas = document.getElementById("aristas"), gNodos = document.getElementById("nodos");
+const aristas = {};
+function arista(a, b) {
+  const p = borde(a, b), q = borde(b, a);
+  const linea = el("line", { class: "arista", x1: p.x, y1: p.y, x2: q.x, y2: q.y });
+  gAristas.appendChild(linea);
+  aristas[`${a}-${b}`] = aristas[`${b}-${a}`] = linea;
+}
+for (const s of SERVICIOS) { arista("cliente", s); arista(s, "redis"); arista(s, "pg"); }
+
+const nodosDom = {};
+for (const [id, n] of Object.entries(NODOS)) {
+  const g = el("g", { class: `nodo ${n.clase}` });
+  g.appendChild(el("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: 10 }));
+  g.appendChild(el("text", { x: n.x + 12, y: n.y + 22 }, n.t));
+  n.s.forEach((linea, i) => g.appendChild(el("text", { class: "sub", x: n.x + 12, y: n.y + 39 + i * 14 }, linea)));
+  gNodos.appendChild(g);
+  nodosDom[id] = g;
+}
+
+// ---------------------------------------------------------------- estado
+const PASOS = ESCENAS.flatMap((escena, i) => escena.pasos.map((p, j) => ({ ...p, escena: i, indice: j })));
+const paquete = document.getElementById("paquete"), paqueteTexto = document.getElementById("paquete-texto");
+const progreso = document.getElementById("progreso");
+progreso.max = PASOS.length - 1;
+let actual = 0, reproduciendo = false, temporizador = null, animacion = null;
+const sinMovimiento = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Las claves de Redis en el paso n se obtienen repitiendo los cambios desde
+// el paso 0: así retroceder o saltar de escena siempre muestra el estado correcto.
+function clavesHasta(n) {
+  let claves = [];
+  for (let i = 0; i <= n; i++) {
+    const p = PASOS[i];
+    if (p.menos) claves = claves.filter(([k]) => !p.menos.some((prefijo) => k.startsWith(prefijo)));
+    if (p.mas) claves = claves.concat(p.mas);
+  }
+  return claves;
+}
+
+function pintarClaves(n) {
+  const cont = document.getElementById("claves");
+  const claves = clavesHasta(n), nuevas = new Set((PASOS[n].mas || []).map(([k]) => k));
+  if (PASOS[n].caido) { cont.innerHTML = '<p class="vacio error">Sin conexión: ningún servicio puede leer ni escribir.</p>'; return; }
+  if (!claves.length) { cont.innerHTML = '<p class="vacio">Sin claves todavía.</p>'; return; }
+  const tabla = document.createElement("table");
+  tabla.innerHTML = "<thead><tr><th>Clave</th><th>Valor</th><th>TTL</th></tr></thead>";
+  const cuerpo = document.createElement("tbody");
+  for (const [clave, valor, ttl] of claves) {
+    const fila = document.createElement("tr");
+    if (nuevas.has(clave)) fila.className = "nueva";
+    for (const texto of [clave, valor, ttl]) { const td = document.createElement("td"); td.textContent = texto; fila.appendChild(td); }
+    cuerpo.appendChild(fila);
+  }
+  tabla.appendChild(cuerpo);
+  cont.replaceChildren(tabla);
+}
+
+function moverPaquete(paso, duracion) {
+  cancelAnimationFrame(animacion);
+  paqueteTexto.textContent = paso.msg;
+  const ancho = Math.max(64, paso.msg.length * 7.2 + 16);
+  const caja = paquete.querySelector("rect");
+  caja.setAttribute("width", ancho); caja.setAttribute("x", -ancho / 2);
+  paquete.setAttribute("visibility", "visible");
+  const propio = paso.de === paso.a;
+  const p = propio ? centro(paso.de) : borde(paso.de, paso.a);
+  const q = propio ? centro(paso.de) : borde(paso.a, paso.de);
+  if (propio) { p.y -= 6; q.y -= 6; }
+  const inicio = performance.now();
+  const cuadro = (ahora) => {
+    const t = sinMovimiento || propio ? 1 : Math.min(1, (ahora - inicio) / duracion);
+    const s = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;  // entrada y salida suaves
+    paquete.setAttribute("transform", `translate(${p.x + (q.x - p.x) * s} ${p.y + (q.y - p.y) * s})`);
+    if (t < 1) animacion = requestAnimationFrame(cuadro);
+  };
+  animacion = requestAnimationFrame(cuadro);
+}
+
+function mostrar(n) {
+  actual = Math.max(0, Math.min(PASOS.length - 1, n));
+  const paso = PASOS[actual], escena = ESCENAS[paso.escena];
+  progreso.value = actual;
+  document.querySelectorAll("#escenas button").forEach((b, i) => b.setAttribute("aria-pressed", i === paso.escena));
+  for (const [id, g] of Object.entries(nodosDom)) {
+    g.classList.toggle("activo", id === paso.de || id === paso.a);
+    g.classList.toggle("caido", id === "redis" && !!paso.caido);
+  }
+  Object.values(aristas).forEach((l) => l.classList.remove("viva"));
+  aristas[`${paso.de}-${paso.a}`]?.classList.add("viva");
+
+  document.getElementById("paso-num").textContent = `${escena.nombre} · paso ${paso.indice + 1} de ${escena.pasos.length}`;
+  document.getElementById("paso-titulo").textContent = paso.titulo;
+  const texto = document.getElementById("paso-texto");
+  texto.textContent = paso.texto; texto.hidden = !paso.texto;
+  document.getElementById("paso-codigo").textContent = paso.codigo;
+  const veredicto = document.getElementById("paso-veredicto");
+  veredicto.hidden = !paso.veredicto;
+  veredicto.textContent = "";
+  if (paso.veredicto) { veredicto.className = `veredicto ${paso.veredicto[0]}`; veredicto.textContent = paso.veredicto[1]; }
+  pintarClaves(actual);
+  moverPaquete(paso, 1100 * velocidad());
+}
+
+const velocidad = () => parseFloat(document.getElementById("velocidad").value);
+const botonReproducir = document.getElementById("reproducir");
+
+function programar() {
+  clearTimeout(temporizador);
+  if (!reproduciendo) return;
+  temporizador = setTimeout(() => {
+    if (actual >= PASOS.length - 1) { pausar(); return; }
+    mostrar(actual + 1); programar();
+  }, 3400 * velocidad());
+}
+function pausar() { reproduciendo = false; clearTimeout(temporizador); botonReproducir.textContent = "▶ Reproducir"; }
+function alternar() {
+  if (reproduciendo) { pausar(); return; }
+  if (actual >= PASOS.length - 1) mostrar(0);
+  reproduciendo = true; botonReproducir.textContent = "❚❚ Pausa"; programar();
+}
+
+// ---------------------------------------------------------------- controles
+const barraEscenas = document.getElementById("escenas");
+ESCENAS.forEach((escena, i) => {
+  const b = document.createElement("button");
+  b.textContent = escena.nombre;
+  b.addEventListener("click", () => { mostrar(PASOS.findIndex((p) => p.escena === i)); programar(); });
+  barraEscenas.appendChild(b);
+});
+botonReproducir.addEventListener("click", alternar);
+document.getElementById("anterior").addEventListener("click", () => { pausar(); mostrar(actual - 1); });
+document.getElementById("siguiente").addEventListener("click", () => { pausar(); mostrar(actual + 1); });
+progreso.addEventListener("input", () => { pausar(); mostrar(+progreso.value); });
+document.getElementById("velocidad").addEventListener("change", programar);
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("select, input")) return;
+  if (e.key === "ArrowRight") { pausar(); mostrar(actual + 1); }
+  else if (e.key === "ArrowLeft") { pausar(); mostrar(actual - 1); }
+  else if (e.key === " ") { e.preventDefault(); alternar(); }
+});
+
+mostrar(0);
+</script>
+</body>
+</html>

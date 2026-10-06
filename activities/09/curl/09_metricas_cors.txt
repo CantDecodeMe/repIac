@@ -1,0 +1,54 @@
+# Metricas (/metrics) y CORS con lista blanca
+# Generado: 2026-10-06T17:02:47-06:00 -- ./scripts/evidencias.sh
+
+>>> GET http://localhost:5022/metrics
+
+    cache_consultas_total{servicio="libros-ms",resultado="bypass"} 5
+    cache_consultas_total{servicio="libros-ms",resultado="hit"} 16
+    cache_consultas_total{servicio="libros-ms",resultado="miss"} 39
+    cache_invalidaciones_total{servicio="libros-ms"} 16
+    jwt_validaciones_total{servicio="libros-ms",resultado="aceptado"} 21
+    jwt_validaciones_total{servicio="libros-ms",resultado="ausente"} 2
+    jwt_validaciones_total{servicio="libros-ms",resultado="expirado"} 2
+    jwt_validaciones_total{servicio="libros-ms",resultado="invalido"} 12
+    jwt_validaciones_total{servicio="libros-ms",resultado="revocado"} 3
+    jwt_validaciones_total{servicio="libros-ms",resultado="rol_insuficiente"} 5
+    redis_operaciones_total{servicio="libros-ms",operacion="cache_guardar",resultado="ok"} 39
+    redis_operaciones_total{servicio="libros-ms",operacion="cache_invalidar",resultado="ok"} 16
+    redis_operaciones_total{servicio="libros-ms",operacion="cache_leer",resultado="error"} 3
+    redis_operaciones_total{servicio="libros-ms",operacion="cache_leer",resultado="ok"} 57
+    redis_operaciones_total{servicio="libros-ms",operacion="cache_leer",resultado="omitida"} 2
+    redis_operaciones_total{servicio="libros-ms",operacion="revocacion_consultar",resultado="error"} 2
+    redis_operaciones_total{servicio="libros-ms",operacion="revocacion_consultar",resultado="ok"} 24
+
+>>> GET http://localhost:5021/metrics
+
+    redis_operaciones_total{servicio="auth-ms",operacion="intentos_contar",resultado="ok"} 14
+    redis_operaciones_total{servicio="auth-ms",operacion="intentos_leer",resultado="error"} 2
+    redis_operaciones_total{servicio="auth-ms",operacion="intentos_leer",resultado="ok"} 33
+    redis_operaciones_total{servicio="auth-ms",operacion="intentos_limpiar",resultado="ok"} 17
+    redis_operaciones_total{servicio="auth-ms",operacion="refresh_leer",resultado="error"} 4
+    redis_operaciones_total{servicio="auth-ms",operacion="refresh_leer",resultado="ok"} 18
+    redis_operaciones_total{servicio="auth-ms",operacion="revocar",resultado="ok"} 20
+    redis_operaciones_total{servicio="auth-ms",operacion="sesion_cerrar",resultado="ok"} 8
+    redis_operaciones_total{servicio="auth-ms",operacion="sesion_crear",resultado="ok"} 17
+    redis_operaciones_total{servicio="auth-ms",operacion="sesion_leer",resultado="ok"} 12
+    redis_operaciones_total{servicio="auth-ms",operacion="sesion_renovar",resultado="ok"} 4
+    sesiones_eventos_total{servicio="auth-ms",evento="login"} 17
+    sesiones_eventos_total{servicio="auth-ms",evento="login_bloqueado"} 2
+    sesiones_eventos_total{servicio="auth-ms",evento="login_fallido"} 14
+    sesiones_eventos_total{servicio="auth-ms",evento="logout"} 8
+    sesiones_eventos_total{servicio="auth-ms",evento="refresh"} 4
+    sesiones_eventos_total{servicio="auth-ms",evento="refresh_rechazado"} 9
+
+## Un origen que no esta en CORS_ORIGENES no recibe Access-Control-Allow-Origin
+
+>>> GET http://localhost:5024/authors?format=json&per_page=1
+    Origin: https://sitio-ajeno.example
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"autores":[{"autor_id":8,"biografia":"Aviador y escritor franc\u00e9s, autor de El principito.","foto":"/uploads/seed/autor8.svg","nombre":"Antoine de Saint-Exup\u00e9ry","total_libros":1}],"page":1,"per_page":1,"total":9}
+

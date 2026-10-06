@@ -1,0 +1,109 @@
+# Validacion del JWT en cada servicio: 401 (ausente o invalido) y 403 (rol insuficiente)
+# Generado: 2026-10-06T17:02:44-06:00 -- ./scripts/evidencias.sh
+
+## Sin token
+
+>>> GET http://localhost:5023/users?format=json
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="users-ms"
+    Vary: Origin
+
+    {"error":"Se requiere un token Bearer."}
+
+
+## Token con la firma alterada
+
+>>> GET http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="pedidos-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token no es valido."}
+
+
+## Token alg=none
+
+>>> POST http://localhost:5024/authors?format=json
+    Authorization: Bearer eyJhbGciOiAibm9uZSIsICJ0eXAiOiAiSldUIn0.eyJpc3MiOiAi...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre":"X"}
+
+<<< HTTP/1.1 401 UNAUTHORIZED
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="authors-ms", error="invalid_token"
+    Vary: Origin
+
+    {"error":"El token no es valido."}
+
+
+## Se crea un cliente (role_id=2) con users-ms y se inicia sesion con el
+
+>>> POST http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"nombre": "Cliente", "apellido_paterno": "De", "apellido_materno": "Evidencia", "email": "evidencia-curl-1791327763@example.com", "password": "<oculta>"}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"activo":true,"apellido_materno":"Evidencia","apellido_paterno":"De","creado_en":"2026-10-06T23:02:44.517623+00:00","email":"evidencia-curl-1791327763@example.com","nombre":"Cliente","rol":"cliente","role_id":2,"usuario_id":34}
+
+
+>>> POST http://localhost:5021/login?format=json
+    Content-Type: application/json
+
+    {"email": "evidencia-curl-1791327763@example.com", "password": "<oculta>"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Set-Cookie: auth_sid=<oculta>; Expires=Wed, 07 Oct 2026 01:02:44 GMT; Max-Age=7200; HttpOnly; Path=/; SameSite=Lax
+    Vary: Origin
+
+    {"email":"evidencia-curl-1791327763@example.com","expires_at":1791328964,"expires_in":1200,"nombre":"Cliente","refresh_expires_in":604800,"refresh_token":"<oculto>","role_id":2,"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>","token_type":"Bearer","usuario_id":34}
+
+
+## Cliente en rutas de administrador -> 403
+
+>>> GET http://localhost:5023/users?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Tu rol no tiene permiso para esta operacion."}
+
+
+>>> POST http://localhost:5022/books
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"isbn":"X","titulo":"X","precio":1,"stock":1}
+
+<<< HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/xml; charset=utf-8
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <error>Tu rol no tiene permiso para esta operacion.</error>
+
+>>> PATCH http://localhost:5023/users/34?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"role_id":1}
+
+<<< HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Solo un administrador puede cambiar el rol o el estado."}
+

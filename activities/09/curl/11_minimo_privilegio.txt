@@ -1,0 +1,22 @@
+# PostgreSQL: cada rol nuevo solo ve su dominio (todo esto debe fallar)
+# Generado: 2026-10-06T17:02:53-06:00 -- ./scripts/evidencias.sh
+
+$ psql -U users_ms_svc -c "select * from public.usuarios"
+    ERROR:  permission denied for table usuarios
+
+$ psql -U authors_ms_svc -c "update public.libros set precio = 0"
+    ERROR:  permission denied for table libros
+
+$ psql -U pedidos_ms_svc -c "update public.libros set precio = 0"
+    ERROR:  permission denied for table libros
+
+$ psql -U pedidos_ms_svc -c "select * from auth.usuarios"
+    ERROR:  permission denied for schema auth
+    LINE 1: select * from auth.usuarios
+                          ^
+
+$ psql -U pagos_ms_svc -c "update pedidos.pedidos set total = 0"
+    ERROR:  permission denied for table pedidos
+
+$ psql -U pagos_ms_svc -c "select * from public.libros"
+    ERROR:  permission denied for table libros

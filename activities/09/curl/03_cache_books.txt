@@ -1,0 +1,101 @@
+# Cache de GET /books y GET /books/<isbn> en Redis, con invalidacion
+# Generado: 2026-10-06T17:02:44-06:00 -- ./scripts/evidencias.sh
+
+>>> POST http://localhost:5022/books
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"isbn":"EVID-EJ09-1791327763","titulo":"Libro de evidencia","precio":120.5,"stock":5}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/xml; charset=utf-8
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>
+
+## Primera lectura: MISS (va a PostgreSQL y guarda en Redis)
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>
+
+## Segunda lectura: HIT (sale de Redis)
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: HIT
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>
+
+>>> GET http://localhost:5022/books?isbn=EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <books total="1" page="1" per_page="8"><book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book></books>
+
+>>> GET http://localhost:5022/books?isbn=EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: HIT
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <books total="1" page="1" per_page="8"><book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book></books>
+
+## Claves y TTL en Redis
+
+$ redis-cli --scan --pattern books:*
+    books:EVID-EJ09-1791327721
+    books:EVID-EJ09-1791327728
+    books:list:202f43b6d563e9ebba2a95c49558651d681e83de
+    books:EVID-EJ09-1791327763
+
+$ redis-cli TTL books:EVID-EJ09-1791327763
+    120
+
+## Una escritura (PATCH) invalida las claves
+
+>>> PATCH http://localhost:5022/books/EVID-EJ09-1791327763
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"titulo":"Libro de evidencia (editado)"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>
+
+$ redis-cli --scan --pattern books:*
+    books:EVID-EJ09-1791327721
+    books:EVID-EJ09-1791327728
+
+## La siguiente lectura es MISS y trae el dato nuevo
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>5</stock><authors /><concepts /></book>

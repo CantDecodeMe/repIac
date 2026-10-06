@@ -1,0 +1,103 @@
+# pedidos-ms: pedidos, lineas, stock y estados
+# Generado: 2026-10-06T17:02:46-06:00 -- ./scripts/evidencias.sh
+
+>>> POST http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"lineas":[{"isbn":"EVID-EJ09-1791327763","cantidad":2}]}
+
+<<< HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.206168+00:00","creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"pendiente","lineas":[{"cantidad":2,"isbn":"EVID-EJ09-1791327763","linea_id":13,"precio_unitario":"120.50","subtotal":"241.00","titulo":"Libro de evidencia (editado)"}],"pedido_id":12,"total":"241.00","usuario_id":34}
+
+
+## El stock bajo de 5 a 3 y /books lo refleja (cache invalidado)
+
+>>> GET http://localhost:5022/books/EVID-EJ09-1791327763
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Cache: MISS
+    Vary: Origin
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <book><isbn>EVID-EJ09-1791327763</isbn><title>Libro de evidencia (editado)</title><genero /><formato>Fisico</formato><editorial /><year /><portada /><price>120.50</price><stock>3</stock><authors /><concepts /></book>
+
+## Sin stock suficiente -> 409, y no se mueve nada
+
+>>> POST http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"lineas":[{"isbn":"EVID-EJ09-1791327763","cantidad":99}]}
+
+<<< HTTP/1.1 409 CONFLICT
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Stock insuficiente para \"Libro de evidencia (editado)\": quedan 3, se pidieron 99 mas."}
+
+
+>>> PUT http://localhost:5025/orders/12/lines/EVID-EJ09-1791327763?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"cantidad":3}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.292292+00:00","creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"pendiente","lineas":[{"cantidad":3,"isbn":"EVID-EJ09-1791327763","linea_id":13,"precio_unitario":"120.50","subtotal":"361.50","titulo":"Libro de evidencia (editado)"}],"pedido_id":12,"total":"361.50","usuario_id":34}
+
+
+>>> GET http://localhost:5025/orders?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"page":1,"pedidos":[{"actualizado_en":"2026-10-06T23:02:46.292292+00:00","articulos":3,"creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"pendiente","pedido_id":12,"total":"361.50","usuario_id":34}],"per_page":20,"total":1}
+
+
+>>> GET http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    Vary: Origin
+
+    {"actualizado_en":"2026-10-06T23:02:46.292292+00:00","creado_en":"2026-10-06T23:02:46.206168+00:00","estado":"pendiente","lineas":[{"cantidad":3,"isbn":"EVID-EJ09-1791327763","linea_id":13,"precio_unitario":"120.50","subtotal":"361.50","titulo":"Libro de evidencia (editado)"}],"pedido_id":12,"total":"361.50","usuario_id":34}
+
+
+## Un cliente no puede cambiar el estado (403); enviar sin pagar no es valido (409)
+
+>>> PATCH http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"estado":"enviado"}
+
+<<< HTTP/1.1 403 FORBIDDEN
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Tu rol no tiene permiso para esta operacion."}
+
+
+>>> PATCH http://localhost:5025/orders/12?format=json
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJh...<firma-oculta>
+    Content-Type: application/json
+
+    {"estado":"enviado"}
+
+<<< HTTP/1.1 409 CONFLICT
+    Content-Type: application/json
+    Vary: Origin
+
+    {"error":"Un pedido \"pendiente\" no puede pasar a \"enviado\"."}
+
