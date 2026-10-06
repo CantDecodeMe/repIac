@@ -613,7 +613,7 @@ $ psql -U pagos_ms_svc -c &quot;select * from public.libros&quot;
         <div class="aviso">
           <strong>Pendientes y límites, declarados:</strong>
           <ul style="margin:8px 0 0;padding-left:18px;">
-            <li>Los servicios corren en el Raspberry Pi ligados a <code>127.0.0.1</code>; los hostnames públicos por el túnel de Cloudflare aún no están dados de alta, así que las evidencias son contra <code>localhost</code>.</li>
+            <li>Las evidencias de este reporte se tomaron contra <code>localhost</code> en el Raspberry Pi. Después se publicaron los seis servicios por el túnel de Cloudflare (<code>auth-redis</code>, <code>libros-redis</code>, <code>users</code>, <code>authors</code>, <code>pedidos</code> y <code>pagos</code> en <code>.maxthecoder.online</code>) y se comprobó por HTTPS el flujo login → rutas con JWT → caché → logout → token revocado; la suite completa de 207 pruebas solo se corrió en local.</li>
             <li>Redis es un punto único de fallo para todo lo que exige JWT: no hay réplica.</li>
             <li><code>/metrics</code> es público (solo contadores); habría que restringirlo antes de exponerlo.</li>
             <li>La app hace las llamadas HTTP en el hilo de la interfaz: un servicio lento congela la ventana hasta 5 segundos.</li>
