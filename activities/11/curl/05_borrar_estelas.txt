@@ -1,0 +1,5 @@
+# Borrar estelas (clear) difundido a los mapas
+# Generado: 2026-10-30T17:14:57-06:00 -- scripts/evidencias.py
+
+[gps] >>> {"type": "clear"}
+[map] <<< {"type": "clear"}

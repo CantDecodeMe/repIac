@@ -1,0 +1,16 @@
+# Health check y estado actual de los vehiculos
+# Generado: 2026-10-30T17:14:57-06:00 -- scripts/evidencias.py
+
+>>> GET https://mapa-gps.maxthecoder.online/health
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"map_clients":0,"status":"ok","vehicles":20}
+
+>>> GET https://mapa-gps.maxthecoder.online/vehicles/V001/history
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [{"heading":14.1,"latitude":25.710652,"longitude":-100.313179,"speed":87.9,"timestamp":1793401898.333704,"vehicle_id":"V001"},{"heading":14.1,"latitude":25.71087,"longitude":-100.313118,"speed":90.1,"timestamp":1793401899.334967,"vehicle_id":"V001"},{"heading":14.1,"latitude":25.711081,"longitude":-100.313059,"speed":87.1,"timestamp":1793401900.3362231,"vehicle_id":"V001"},{"heading":17.3,"latitude":25.711292,"longitude":-100.312988,"speed":88.4,"timestamp":1793401901.337676,"vehicle_id":"V001"},{"heading":17.3,"latitude":25.711499,"longitude":-100.312916,"speed":87.0,"timestamp":1793401902.33 ... (recortado)

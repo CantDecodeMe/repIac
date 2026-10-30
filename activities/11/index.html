@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 11 · Monterrey GPS Tracker</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision p { margin: 0; font-size: 0.78rem; color: var(--muted); }
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+    pre.terminal { white-space: pre-wrap; word-break: break-all; font-size: 0.66rem; line-height: 1.5; }
+    .mapa-vivo { margin: 20px 0 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .mapa-vivo iframe { display: block; width: 100%; height: 520px; border: 0; }
+    @media (max-width: 650px) { .indice { columns: 1; } }
+    @media print { .indice, .mapa-vivo { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 11 · WebSockets</p>
+      <h1>Vehículos que se mueven<br>en un mapa, <em>en vivo.</em></h1>
+      <p class="report-lead">Un microservicio Flask con Flask-Sock recibe por WebSocket las posiciones GPS que publica una aplicación de escritorio y las difunde en tiempo real a un mapa web con Leaflet y OpenStreetMap. Los vehículos simulados recorren calles reales de Monterrey, y tanto el mapa como la app de escritorio pueden cambiar cuántos vehículos hay y a qué velocidad van.</p>
+      <div class="header-tags">
+        <span>WebSocket</span><span>Flask-Sock</span><span>Leaflet</span><span>OpenStreetMap</span><span>OSRM</span><span>Python/Tkinter</span><span>Raspberry Pi · Docker</span><span>Cloudflare Tunnel</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y alcance</a></li>
+        <li><a href="#s2">02 · Arquitectura</a></li>
+        <li><a href="#s3">03 · Protocolo de mensajes</a></li>
+        <li><a href="#s4">04 · Controles compartidos</a></li>
+        <li><a href="#s5">05 · Decisiones de ingeniería</a></li>
+        <li><a href="#s6">06 · Mapa en vivo</a></li>
+        <li><a href="#s7">07 · Evidencia (WebSocket y HTTP)</a></li>
+        <li><a href="#s8">08 · Despliegue y límites</a></li>
+      </ul>
+    </header>
+
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>La consigna pide simular vehículos que se mueven por Monterrey y verlos en un mapa web en tiempo real. Se resuelve con tres piezas: un <strong>microservicio</strong> que valida y difunde, un <strong>mapa web</strong> servido por el mismo microservicio y una <strong>GPSapp</strong> de escritorio que simula y publica las posiciones.</p>
+        <p><strong>Más allá de la consigna:</strong> los vehículos siguen rutas de calles reales (no se mueven en línea libre), el mapa dibuja la estela de cada uno y hay controles de cantidad, velocidad y borrado de estelas sincronizados entre el mapa y la app.</p>
+        <p><strong>Fuera del alcance:</strong> persistencia (el estado vive en memoria), autenticación y varias réplicas del servidor.</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura</h2>
+        <pre><code>  GPSapp (Tkinter)  ─┐                         ┌─►  Mapa web (Leaflet + OSM)
+  simular.py (CLI)  ─┼─ ws://…/ws?role=gps ─► Flask + Flask-Sock ─┤    ws://…/ws?role=map
+                     │   posiciones JSON      │ valida              └─►  (varios mapas a la vez)
+        ▲            │                        │ estado actual + historial (memoria)
+        │ rutas de   │◄── config (cantidad, velocidad) ◄── control desde mapa o GPSapp
+        │ calles     │
+      OSRM / OpenStreetMap          Escucha 0.0.0.0:5900 · público por Cloudflare Tunnel</code></pre>
+        <p>El servidor distingue dos roles por el parámetro <code>role</code> de la URL del WebSocket: <code>gps</code> publica posiciones y <code>map</code> las recibe. Con otro valor cierra la conexión con código 1008.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Recurso</th><th>Ruta</th></tr></thead>
+            <tbody>
+              <tr><td>Mapa web</td><td><code>GET /</code></td></tr>
+              <tr><td>WebSocket</td><td><code>/ws?role=gps</code> · <code>/ws?role=map</code></td></tr>
+              <tr><td>Health check</td><td><code>GET /health</code></td></tr>
+              <tr><td>Estado actual / historial</td><td><code>GET /vehicles</code> · <code>GET /vehicles/&lt;id&gt;/history</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="s3" class="page-break-before">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Protocolo de mensajes</h2>
+        <p>Todo viaja como JSON. El simulador envía la posición de cada vehículo una vez por segundo:</p>
+        <pre><code>{"vehicle_id": "V001", "latitude": 25.6866, "longitude": -100.3161, "speed": 45.5, "heading": 270}</code></pre>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mensaje</th><th>Sentido</th><th>Para qué</th></tr></thead>
+            <tbody>
+              <tr><td><code>snapshot</code></td><td>servidor → mapa</td><td>Al conectar: configuración, vehículos actuales e historial, para dibujar las estelas desde el inicio.</td></tr>
+              <tr><td><code>update</code></td><td>servidor → mapa</td><td>Una posición nueva ya validada, con marca de tiempo.</td></tr>
+              <tr><td><code>remove</code></td><td>gps → servidor → mapa</td><td>Un vehículo dejó de existir; el mapa quita marcador y estela.</td></tr>
+              <tr><td><code>config</code></td><td>servidor → todos</td><td>Cantidad de vehículos y multiplicador de velocidad vigentes.</td></tr>
+              <tr><td><code>control</code></td><td>mapa o gps → servidor</td><td>Petición de cambiar cantidad y velocidad.</td></tr>
+              <tr><td><code>clear</code></td><td>gps → servidor → mapas</td><td>Borrar las estelas en todos los mapas.</td></tr>
+              <tr><td><code>error</code></td><td>servidor → quien envió</td><td>Dato inválido; la conexión sigue abierta.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>La validación comprueba que el identificador cumpla <code>[A-Za-z0-9_-]{1,32}</code>, latitud en [−90, 90], longitud en [−180, 180], velocidad en [0, 300] y rumbo normalizado a [0, 360). Los booleanos no se aceptan como números.</p>
+      </div>
+    </section>
+
+    <section id="s4">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Controles compartidos</h2>
+        <p>El mapa tiene dos <em>sliders</em> —vehículos (0 a 50) y velocidad (×0,1 a ×5)— y un botón «Borrar estelas». La GPSapp de escritorio tiene los mismos tres controles. Cualquier cambio viaja al servidor, que lo valida, lo guarda como configuración vigente y lo reenvía a todos los simuladores y mapas, de modo que los controles de todos los clientes quedan iguales.</p>
+        <p>Las estelas se dibujan en el navegador, así que «Borrar estelas» en el mapa web solo limpia esa vista; el botón de la GPSapp, en cambio, emite <code>clear</code> y limpia todos los mapas abiertos. Un mapa nuevo recibe la configuración vigente en el <code>snapshot</code>.</p>
+      </div>
+    </section>
+
+    <section id="s5" class="page-break-before">
+      <div class="section-number">05</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+        <div class="decision">
+          <h3>Rutas de calles reales con OSRM</h3>
+          <p>La primera versión movía los vehículos con un rumbo aleatorio, y cruzaban manzanas y edificios como si volaran. Ahora cada vehículo pide una ruta a OSRM (basado en OpenStreetMap) hacia un lugar al azar de la zona metropolitana, la recorre punto a punto a su velocidad y, al terminar, pide otra desde donde quedó. La petición se hace en un hilo aparte para no retrasar el envío de los demás.</p>
+        </div>
+        <div class="decision">
+          <h3>El servidor es la fuente de la configuración</h3>
+          <p>Cantidad y velocidad no se guardan en cada cliente: viven en el servidor y se difunden. Así no hay que reconciliar valores entre el mapa, la GPSapp y el simulador sin interfaz, y un cliente que entra después arranca con los valores correctos.</p>
+        </div>
+        <div class="decision">
+          <h3>Validar en el servidor, no en el cliente</h3>
+          <p>Todo lo que llega, de <code>gps</code> o de <code>map</code>, se valida en el servidor. Un dato fuera de rango (<code>latitude: 999</code>, <code>vehicles: 999</code>) devuelve <code>error</code> y no altera el estado ni difunde nada. El tope de velocidad en el mensaje (300 km/h) y el multiplicador (×5) están pensados juntos: la velocidad mostrada se limita a 300.</p>
+        </div>
+        <div class="decision">
+          <h3>Estado en memoria</h3>
+          <p>El estado actual y los últimos 200 puntos por vehículo viven en estructuras protegidas con un candado. Es lo más simple para una demostración, pero se pierde al reiniciar y no permite varias réplicas; para eso haría falta un almacén compartido como el Redis del ejercicio 09.</p>
+        </div>
+        <div class="decision">
+          <h3>Dos simuladores con la misma lógica</h3>
+          <p>La GPSapp usa Tkinter y necesita pantalla. Como el servidor es una Raspberry sin monitor, <code>simular.py</code> reutiliza la misma clase <code>Vehiculo</code> sin interfaz, y así hay vehículos en el mapa público sin depender de una laptop encendida.</p>
+        </div>
+        <div class="aviso"><strong>Sin autenticación.</strong> Cualquiera con la URL puede publicar posiciones o mover los controles. Es aceptable para una demostración de clase; para algo real haría falta un token en el rol <code>gps</code> y en los controles.</div>
+      </div>
+    </section>
+
+    <section id="s6">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Mapa en vivo</h2>
+        <p>El mapa publicado, incrustado. Si no hay simulador corriendo, se verá vacío.</p>
+        <div class="mapa-vivo"><iframe src="https://mapa-gps.maxthecoder.online/" title="Monterrey GPS Tracker en vivo" loading="lazy"></iframe></div>
+        <p><a class="text-link" href="https://mapa-gps.maxthecoder.online/">Abrir el mapa en su propia pestaña <span aria-hidden="true">↗</span></a></p>
+      </div>
+    </section>
+
+    <section id="s7" class="page-break-before">
+      <div class="section-number">07</div>
+      <div>
+        <h2>Evidencia (WebSocket y HTTP)</h2>
+        <p>Las transcripciones se generaron con <code>scripts/evidencias.py</code> contra el despliegue público (por el túnel de Cloudflare, con <code>wss://</code>). Cada archivo está en <code>curl/</code>.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Archivo</th><th>Qué demuestra</th></tr></thead>
+            <tbody>
+              <tr><td><a href="curl/01_health_vehicles.txt"><code>01_health_vehicles.txt</code></a></td><td><code>/health</code> y el historial de un vehículo por HTTP.</td></tr>
+              <tr><td><a href="curl/02_websocket_snapshot_update.txt"><code>02_websocket_snapshot_update.txt</code></a></td><td>Conexión de un mapa y un GPS: <code>snapshot</code>, <code>update</code> y <code>remove</code>.</td></tr>
+              <tr><td><a href="curl/03_validacion_datos_invalidos.txt"><code>03_validacion_datos_invalidos.txt</code></a></td><td>Latitud fuera de rango, velocidad negativa, id inválido y texto que no es JSON: todos rechazados con <code>error</code>.</td></tr>
+              <tr><td><a href="curl/04_controles_cantidad_velocidad.txt"><code>04_controles_cantidad_velocidad.txt</code></a></td><td>Cambio de cantidad y velocidad difundido, y rechazo de 999 vehículos.</td></tr>
+              <tr><td><a href="curl/05_borrar_estelas.txt"><code>05_borrar_estelas.txt</code></a></td><td>El <code>clear</code> de un cliente llega al mapa.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="aviso"><strong>Pendiente:</strong> las capturas de pantalla del mapa y de la ventana de la GPSapp no se incluyen; hay que tomarlas ejecutando los clientes en un equipo con pantalla.</p>
+      </div>
+    </section>
+
+    <section id="s8">
+      <div class="section-number">08</div>
+      <div>
+        <h2>Despliegue y límites</h2>
+        <p>El servidor corre en un contenedor Docker en la Raspberry Pi, publicado solo en <code>127.0.0.1:5900</code>. El acceso público es exclusivamente por el túnel de Cloudflare, con el hostname <code>mapa-gps.maxthecoder.online</code> apuntando a <code>gps-tracker:5900</code> por la red <code>services</code>. El hostname se dio de alta con <code>scripts/cloudflare-hostnames.py</code> (simula por defecto; <code>--aplicar</code> ejecuta).</p>
+        <p><strong>Límites conocidos:</strong> las rutas dependen del servidor público de OSRM (sin garantía de disponibilidad); los vehículos no se detienen en semáforos ni por tráfico; la ventana Tkinter se probó por su protocolo, no visualmente; el servidor no escala a varias réplicas.</p>
+        <p>Código: <code>deploy-iac/ejercicio-11</code> — <code>servidor/</code>, <code>gpsapp/</code>, <code>scripts/</code> y <code>tests/</code>.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+    </footer>
+  </main>
+</body>
+</html>

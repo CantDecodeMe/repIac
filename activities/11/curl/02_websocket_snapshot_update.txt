@@ -1,0 +1,12 @@
+# Flujo gps -> servidor -> mapa (snapshot, update, remove)
+# Generado: 2026-10-30T17:14:57-06:00 -- scripts/evidencias.py
+
+[map] conectado a wss://mapa-gps.maxthecoder.online/ws?role=map
+[map] <<< snapshot {"config": {"vehicles": 20, "speed": 1.6}, "vehicles": "<20 elementos>", "history": "<20 elementos>"}
+[gps] conectado a wss://mapa-gps.maxthecoder.online/ws?role=gps
+[gps] <<< {"type": "config", "vehicles": 20, "speed": 1.6}
+
+[gps] >>> {"vehicle_id": "EVID01", "latitude": 25.6866, "longitude": -100.3161, "speed": 45.5, "heading": 270}
+[map] <<< {"type": "update", "vehicle": {"vehicle_id": "EVID01", "latitude": 25.6866, "longitude": -100.3161, "speed": 45.5, "heading": 270.0, "timestamp": 1793402098.428049}}
+[gps] >>> {"type": "remove", "vehicle_id": "EVID01"}
+[map] <<< {"type": "remove", "vehicle_id": "EVID01"}
