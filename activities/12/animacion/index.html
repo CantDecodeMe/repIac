@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library · Reverse proxy, API gateway y load balancer</title>
+<style>
+  :root {
+    --fondo: #f4f1ea; --panel: #fffdf8; --tinta: #1d2430; --tenue: #5d6878; --linea: #d9d2c3;
+    --cliente: #2d5ba6; --cliente-f: #e3eaf6;
+    --infra: #b4520f; --infra-f: #f8e6d6;
+    --servicio: #1f6f5c; --servicio-f: #dcefe9;
+    --datos: #7a5a2b; --datos-f: #efe6d6;
+    --ok: #1f7a4d; --error: #b3261e; --paquete: #1d2430; --codigo: #f0ebdf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #14181f; --panel: #1b212b; --tinta: #e8e4da; --tenue: #9aa4b5; --linea: #313a48;
+      --cliente: #8fb2ee; --cliente-f: #1e2a40;
+      --infra: #f0a066; --infra-f: #3a2618;
+      --servicio: #6fc3ae; --servicio-f: #17312b;
+      --datos: #d9b06a; --datos-f: #33291a;
+      --ok: #62c48f; --error: #f0806c; --paquete: #e8e4da; --codigo: #232b37;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fondo: #14181f; --panel: #1b212b; --tinta: #e8e4da; --tenue: #9aa4b5; --linea: #313a48;
+    --cliente: #8fb2ee; --cliente-f: #1e2a40;
+    --infra: #f0a066; --infra-f: #3a2618;
+    --servicio: #6fc3ae; --servicio-f: #17312b;
+    --datos: #d9b06a; --datos-f: #33291a;
+    --ok: #62c48f; --error: #f0806c; --paquete: #e8e4da; --codigo: #232b37;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+         font: 15px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { max-width: 1320px; margin: 0 auto; padding: 20px 24px 8px; }
+  h1 { margin: 0; font-size: 1.4rem; }
+  header p { margin: 4px 0 0; color: var(--tenue); max-width: 85ch; }
+  main { max-width: 1320px; margin: 0 auto; padding: 8px 24px 32px;
+         display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 16px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; padding: 8px 16px 24px; } header { padding: 16px 16px 4px; } }
+  .tarjeta { background: var(--panel); border: 1px solid var(--linea); border-radius: 10px; }
+  .escenas { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--linea); }
+  button { font: 600 12.5px/1 ui-sans-serif, system-ui, sans-serif; color: var(--tinta); background: transparent;
+           border: 1px solid var(--linea); border-radius: 999px; padding: 7px 11px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--tinta); color: var(--panel); border-color: var(--tinta); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--cliente); outline-offset: 2px; }
+  svg { display: block; width: 100%; height: auto; }
+  .nodo text { font: 600 12.5px ui-sans-serif, system-ui, sans-serif; fill: var(--tinta); text-anchor: middle; }
+  .nodo .sub { font-weight: 400; font-size: 10.5px; fill: var(--tenue); }
+  .nodo .forma { stroke-width: 2; transition: stroke-width .2s, opacity .3s; }
+  .nodo.activo .forma { stroke-width: 4; }
+  .nodo.caido { opacity: .4; }
+  .nodo.caido .forma { stroke-dasharray: 6 5; }
+  .k-cliente .forma { stroke: var(--cliente); fill: var(--cliente-f); }
+  .k-infra .forma { stroke: var(--infra); fill: var(--infra-f); }
+  .k-servicio .forma { stroke: var(--servicio); fill: var(--servicio-f); }
+  .k-datos .forma { stroke: var(--datos); fill: var(--datos-f); }
+  .tache { stroke: var(--error); stroke-width: 3; }
+  .arista { stroke: var(--linea); stroke-width: 1.6; fill: none; }
+  .viva { stroke: var(--paquete); stroke-width: 2.4; fill: none; stroke-dasharray: 7 6; animation: fluir 1s linear infinite; }
+  .viva.error { stroke: var(--error); }
+  @keyframes fluir { to { stroke-dashoffset: -26; } }
+  @media (prefers-reduced-motion: reduce) { .viva { animation: none; } }
+  #paquete circle { fill: var(--paquete); }
+  #paquete rect { fill: var(--paquete); }
+  #paquete text { font: 600 11px ui-monospace, Menlo, Consolas, monospace; fill: var(--panel); }
+  #paquete.error circle, #paquete.error rect { fill: var(--error); }
+  #paquete.ok circle, #paquete.ok rect { fill: var(--ok); }
+  .zona { font: 600 10px ui-sans-serif, system-ui, sans-serif; fill: var(--tenue); letter-spacing: .12em; text-anchor: middle; }
+  .zona-linea { stroke: var(--linea); stroke-width: 1; }
+  .controles { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--linea); flex-wrap: wrap; }
+  .controles label { font-size: 12px; color: var(--tenue); display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  #progreso { flex: 1 1 140px; accent-color: var(--servicio); }
+  aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .paso { padding: 16px 18px; }
+  .paso .num { font-size: 11px; font-weight: 600; color: var(--tenue); letter-spacing: .1em; text-transform: uppercase; }
+  .paso h2 { margin: 4px 0 8px; font-size: 1.12rem; line-height: 1.3; }
+  .paso p { margin: 0 0 10px; }
+  pre { margin: 0; background: var(--codigo); border-radius: 8px; padding: 10px 12px; overflow-x: auto;
+        font: 12.5px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre; }
+  pre:empty { display: none; }
+  .leyenda { padding: 14px 18px; }
+  .leyenda h3 { margin: 0 0 8px; font-size: .95rem; }
+  .leyenda ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .leyenda li { display: flex; gap: 10px; align-items: flex-start; }
+  .muestra { flex: none; width: 26px; height: 16px; border: 2px solid; margin-top: 3px; }
+  .m-cliente { border-color: var(--cliente); background: var(--cliente-f); border-radius: 999px; }
+  .m-infra { border-color: var(--infra); background: var(--infra-f); border-radius: 2px; }
+  .m-servicio { border-color: var(--servicio); background: var(--servicio-f); border-radius: 5px; }
+  .m-datos { border-color: var(--datos); background: var(--datos-f); border-radius: 50% / 30%; }
+  .nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
+  code { font: 12.5px ui-monospace, Menlo, Consolas, monospace; background: var(--codigo); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Library: reverse proxy, API gateway y load balancer</h1>
+  <p>Recorrido de las peticiones de Library con la arquitectura propuesta, comparado con la actual. Elige una escena y usa Reproducir, o avanza paso a paso con las flechas del teclado.</p>
+</header>
+<main>
+  <section class="tarjeta" aria-label="Animación">
+    <div class="escenas" id="escenas" role="group" aria-label="Escenas"></div>
+    <svg id="lienzo" viewBox="0 0 1000 460" role="img" aria-labelledby="titulo-svg">
+      <title id="titulo-svg">Diagrama de clientes, componentes de infraestructura, microservicios y datos de Library</title>
+      <g id="zonas"></g>
+      <g id="aristas"></g>
+      <g id="vivas"></g>
+      <g id="nodos"></g>
+      <g id="paquete" visibility="hidden">
+        <circle r="7"></circle>
+        <rect x="0" y="-26" height="18" rx="4"></rect>
+        <text x="0" y="-13"></text>
+      </g>
+    </svg>
+    <div class="controles">
+      <button id="anterior" aria-label="Paso anterior">◀ Anterior</button>
+      <button id="reproducir">▶ Reproducir</button>
+      <button id="siguiente" aria-label="Paso siguiente">Siguiente ▶</button>
+      <input id="progreso" type="range" min="0" max="0" value="0" aria-label="Paso">
+      <label>Velocidad <select id="velocidad"><option value="0.6">lenta</option><option value="1" selected>normal</option><option value="1.6">rápida</option></select></label>
+    </div>
+  </section>
+  <aside>
+    <div class="tarjeta paso" aria-live="polite">
+      <div class="num" id="num"></div>
+      <h2 id="titulo"></h2>
+      <p id="texto"></p>
+      <pre id="codigo"></pre>
+    </div>
+    <div class="tarjeta leyenda">
+      <h3>Qué es cada cosa</h3>
+      <ul>
+        <li><span class="muestra m-cliente"></span><span><b>Clientes</b>: app Tkinter, Electron, navegador. Solo conocen una dirección.</span></li>
+        <li><span class="muestra m-infra"></span><span><b>Infraestructura</b>, tres piezas distintas: el <b>reverse proxy</b> intermedia y termina TLS; el <b>API gateway</b> enruta y aplica JWT, roles, cuotas y CORS; el <b>load balancer</b> elige una instancia sana.</span></li>
+        <li><span class="muestra m-servicio"></span><span><b>Microservicios</b> de Library (puertos de clase 5000–5005).</span></li>
+        <li><span class="muestra m-datos"></span><span><b>Datos</b>: Redis (sesiones, caché, revocación) y PostgreSQL.</span></li>
+      </ul>
+      <p class="nota">Basado en el despliegue real del ejercicio 09: los servicios no se llaman entre sí por HTTP, se coordinan por PostgreSQL y comparten Redis.</p>
+    </div>
+  </aside>
+</main>
+<script>
+"use strict";
+const NODOS = {
+  cli:     { x: 20,  y: 190, w: 120, h: 70,  k: "cliente",  t: "App cliente", s: "Tk · Electron · web" },
+  rp:      { x: 175, y: 190, w: 120, h: 70,  k: "infra",    t: "Reverse proxy", s: "Nginx · TLS 443" },
+  gw:      { x: 330, y: 120, w: 120, h: 210, k: "infra",    t: "API gateway", s: "Kong", x2: ["rutas /api/*", "JWT + jti", "rol · rate limit", "CORS · logs"] },
+  lb:      { x: 485, y: 120, w: 105, h: 210, k: "infra",    t: "Load balancer", s: "upstreams", x2: ["least_conn", "GET /health", "saca caídos"] },
+  tunel:   { x: 200, y: 40,  w: 200, h: 346, k: "infra",    t: "Cloudflare Tunnel", s: "TLS · 6 hostnames", x2: ["sin balanceo", "sin gateway", "sin rate limit"] },
+  auth:    { x: 620, y: 40,  w: 200, h: 46,  k: "servicio", t: "Login · auth-ms", s: ":5000 (Pi :5021)" },
+  books:   { x: 620, y: 100, w: 200, h: 46,  k: "servicio", t: "Books · libros-ms", s: ":5001 (Pi :5022)" },
+  b1:      { x: 620, y: 100, w: 62,  h: 46,  k: "servicio", t: "Books 1", s: "" },
+  b2:      { x: 689, y: 100, w: 62,  h: 46,  k: "servicio", t: "Books 2", s: "" },
+  b3:      { x: 758, y: 100, w: 62,  h: 46,  k: "servicio", t: "Books 3", s: "" },
+  pedidos: { x: 620, y: 160, w: 200, h: 46,  k: "servicio", t: "Pedidos · pedidos-ms", s: ":5003 (Pi :5025)" },
+  pagos:   { x: 620, y: 220, w: 200, h: 46,  k: "servicio", t: "Pagos · pagos-ms", s: ":5002 (Pi :5026)" },
+  users:   { x: 620, y: 280, w: 200, h: 46,  k: "servicio", t: "Users · users-ms", s: ":5004 (Pi :5023)" },
+  autores: { x: 620, y: 340, w: 200, h: 46,  k: "servicio", t: "Autores · authors-ms", s: ":5005 (Pi :5024)" },
+  redis:   { x: 860, y: 110, w: 120, h: 64,  k: "datos",    t: "Redis", s: "sesión · caché · jti" },
+  pg:      { x: 860, y: 260, w: 120, h: 64,  k: "datos",    t: "PostgreSQL", s: "libreria-db-1" },
+};
+const SERVICIOS6 = ["auth", "books", "pedidos", "pagos", "users", "autores"];
+const MODOS = {
+  actual: {
+    nodos: ["cli", "tunel", ...SERVICIOS6, "redis", "pg"],
+    aristas: [["cli", "tunel"], ...SERVICIOS6.map(s => ["tunel", s])],
+    zonas: [["CLIENTES", 80], ["INFRAESTRUCTURA", 300], ["MICROSERVICIOS", 720], ["DATOS", 920]],
+  },
+  propuesta: {
+    nodos: ["cli", "rp", "gw", "lb", "auth", "b1", "b2", "b3", "pedidos", "pagos", "users", "autores", "redis", "pg"],
+    aristas: [["cli", "rp"], ["rp", "gw"], ["gw", "lb"], ...["auth", "b1", "pedidos", "pagos", "users", "autores"].map(s => ["lb", s])],
+    zonas: [["CLIENTES", 80], ["INFRAESTRUCTURA", 382], ["MICROSERVICIOS", 720], ["DATOS", 920]],
+  },
+};
+const IDA = ["cli", "rp", "gw"];
+const VUELTA = (s) => [s, "lb", "gw", "rp", "cli"];
+
+const ESCENAS = [
+  { nombre: "Arquitectura actual", modo: "actual", pasos: [
+    { ruta: ["cli", "tunel"], et: "GET pedidos.…/orders", t: "Hoy cada servicio tiene su propio hostname",
+      x: "La app Tkinter guarda seis URL en su pestaña Configuración. La petición de pedidos va a <code>pedidos.maxthecoder.online</code>; la de pagos, a otra dirección distinta.",
+      c: "GET https://pedidos.maxthecoder.online/orders\nAuthorization: Bearer eyJhbGciOiJIUzI1NiIs…" },
+    { ruta: ["tunel", "pedidos"], et: "→ pedidos-ms:8000", t: "El túnel ya hace de reverse proxy, pero solo eso",
+      x: "Cloudflare Tunnel termina TLS y reenvía por nombre de contenedor y puerto interno. No balancea, no valida JWT ni aplica cuotas: con una sola instancia, si pedidos-ms cae, el hostname solo devuelve error." },
+    { ruta: ["pedidos", "redis"], et: "jwt:revoked:<jti>?", t: "Cada servicio repite la validación",
+      x: "pedidos-ms valida firma, expiración y claims del JWT con <code>comun/jwt_util.py</code> y consulta la revocación en Redis. La misma lógica, y la de CORS y métricas, está copiada en las seis imágenes." },
+    { ruta: ["pedidos", "pg"], et: "crear_pedido()", t: "La lógica de negocio va a PostgreSQL",
+      x: "El pedido se crea con una función de PostgreSQL que bloquea el stock con <code>FOR UPDATE</code>. Esto no cambia con la propuesta." },
+    { ruta: ["pedidos", "tunel", "cli"], et: "201 Created", m: "ok", t: "Resumen del problema",
+      x: "Seis direcciones públicas, seis configuraciones de CORS y JWT, sin rate limit global y sin una segunda instancia a la cual mandar el tráfico. La propuesta separa esas tareas en tres piezas de infraestructura." },
+  ]},
+  { nombre: "Propuesta: una entrada", modo: "propuesta", pasos: [
+    { ruta: ["cli", "rp"], et: "GET /api/authors", t: "1 · Reverse proxy: una sola dirección",
+      x: "El cliente solo conoce <code>https://api.maxthecoder.online</code>. Nginx termina TLS, limita el tamaño del cuerpo y oculta qué contenedores y puertos hay detrás.",
+      c: "server {\n  listen 443 ssl;\n  server_name api.maxthecoder.online;\n  client_max_body_size 1m;\n  location /api/ { proxy_pass http://kong:8000; }\n}" },
+    { ruta: ["rp", "gw"], et: "/api/authors", t: "2 · API gateway: entiende la API",
+      x: "Kong busca la ruta: <code>/api/authors</code> pertenece a authors-ms. Es pública en lectura, así que no exige JWT, pero sí aplica CORS, rate limit y registra latencia y código.",
+      c: "routes:\n  - name: autores\n    paths: [/api/authors]\n    service: authors-ms\nplugins: [cors, rate-limiting, prometheus]" },
+    { ruta: ["gw", "lb"], et: "upstream autores", t: "3 · Load balancer: elige instancia",
+      x: "El upstream de authors-ms tiene la lista de instancias y su estado según el health check. Escoge una sana; hoy solo hay una, pero el cliente no tendría que cambiar nada para agregar más." },
+    { ruta: ["lb", "autores"], et: "GET /authors", t: "4 · El microservicio no cambia",
+      x: "authors-ms recibe la petición en su puerto interno, sin saber que pasó por tres componentes. Ya no es alcanzable directamente desde internet." },
+    { ruta: ["autores", "pg"], et: "SELECT autores", t: "5 · Datos", x: "Lee de PostgreSQL con su rol de mínimo privilegio, igual que hoy." },
+    { ruta: VUELTA("autores"), et: "200 OK", m: "ok", t: "6 · La respuesta regresa por el mismo camino",
+      x: "Tres componentes, tres responsabilidades: el reverse proxy <b>intermedia</b>, el API gateway <b>gobierna</b> la API y el load balancer <b>reparte</b>." },
+  ]},
+  { nombre: "Login y JWT", modo: "propuesta", pasos: [
+    { ruta: IDA, et: "POST /api/auth/login", t: "El login es público, pero con cuota",
+      x: "El gateway no pide JWT en <code>/api/auth/login</code> (todavía no hay token), pero aplica un rate limit estricto por IP. Se suma al bloqueo por intentos que auth-ms ya guarda en Redis.",
+      c: "POST /api/auth/login\nContent-Type: application/json\n\n{\"email\":\"ana@example.com\",\"password\":\"••••••••\"}" },
+    { ruta: ["gw", "lb", "auth"], et: "→ auth-ms", t: "El load balancer entrega a auth-ms", x: "Una instancia sana de auth-ms recibe la petición." },
+    { ruta: ["auth", "pg"], et: "auth.usuarios", t: "Verifica la contraseña",
+      x: "auth-ms lee el hash PBKDF2-HMAC-SHA256 (260 000 iteraciones, sal por usuario) y compara con <code>hmac.compare_digest</code>." },
+    { ruta: ["auth", "redis"], et: "session · refresh", t: "Guarda la sesión, nunca el token en claro",
+      x: "En Redis quedan <code>session:&lt;sha256&gt;</code> (2 h) y <code>refresh:&lt;sha256&gt;</code> (7 días, de un solo uso)." },
+    { ruta: VUELTA("auth"), et: "200 access_token", m: "ok", t: "El cliente recibe el JWT",
+      x: "JWT de 20 minutos con <code>sub</code>, <code>role_id</code> y <code>jti</code>. En la propuesta se firma con RS256: el gateway y los servicios solo necesitan la clave pública.",
+      c: "{\n  \"iss\": \"auth-ms\", \"aud\": \"libreria\",\n  \"sub\": \"7\", \"user_id\": 7, \"role_id\": 2,\n  \"exp\": 1794006400,\n  \"jti\": \"5f0c…\"\n}" },
+  ]},
+  { nombre: "Compra completa", modo: "propuesta", pasos: [
+    { ruta: IDA, et: "GET /api/books", t: "1 · Catálogo: ruta pública",
+      x: "Ver libros no requiere JWT. El gateway aplica CORS y cuota general." },
+    { ruta: ["gw", "lb", "b2"], et: "→ Books 2", t: "El load balancer elige una de tres copias",
+      x: "Con <code>least_conn</code> la petición va a la instancia con menos conexiones abiertas, aquí Books 2." },
+    { ruta: ["b2", "redis"], et: "books:list HIT", t: "Caché compartido",
+      x: "El caché <code>books:*</code> vive en Redis, no en la memoria de la instancia: las tres copias lo comparten y una invalidación les llega a todas." },
+    { ruta: VUELTA("b2"), et: "200 XML", m: "ok", t: "Catálogo de vuelta", x: "Cabecera <code>X-Cache: HIT</code>." },
+    { ruta: IDA, et: "POST /api/orders", t: "2 · Pedido: ahora sí con JWT",
+      x: "La ruta exige <code>Authorization: Bearer</code>. Sin token, el gateway responde 401 y la petición no llega a pedidos-ms.",
+      c: "POST /api/orders\nAuthorization: Bearer eyJhbGciOiJSUzI1NiIs…\n\n{\"lineas\":[{\"isbn\":\"9786071512383\",\"cantidad\":1}]}" },
+    { ruta: ["gw", "redis"], et: "jwt:revoked:<jti>?", t: "El gateway valida el token",
+      x: "Verifica firma, algoritmo fijo, <code>exp</code>, <code>iss</code>, <code>aud</code>, y consulta si el <code>jti</code> está revocado. Si Redis no responde: 503, nunca dejar pasar." },
+    { ruta: ["gw", "lb", "pedidos"], et: "→ pedidos-ms", t: "Defensa en profundidad",
+      x: "pedidos-ms vuelve a validar el JWT y aplica la autorización fina: un cliente solo ve sus pedidos (404 para el de otro)." },
+    { ruta: ["pedidos", "pg"], et: "crear_pedido()", t: "Transacción en PostgreSQL",
+      x: "Una sola función aparta el stock con <code>FOR UPDATE</code> y crea el pedido en estado <code>pendiente</code>. Invalida <code>books:*</code> porque cambió el stock." },
+    { ruta: VUELTA("pedidos"), et: "201 pedido_id: 42", m: "ok", t: "Pedido creado", x: "El cliente guarda el id para pagar." },
+    { ruta: IDA, et: "POST /api/payments", t: "3 · Pago",
+      x: "Mismo JWT. El cliente manda <code>Idempotency-Key</code> para que un reintento no cobre dos veces.",
+      c: "POST /api/payments\nAuthorization: Bearer eyJhbGciOiJSUzI1NiIs…\nIdempotency-Key: compra-42-a1b2c3\n\n{\"pedido_id\":42,\"metodo\":\"tarjeta\"}" },
+    { ruta: ["gw", "lb", "pagos"], et: "→ pagos-ms", t: "El gateway ya validó; pagos-ms también", x: "Misma validación de JWT en el gateway antes de llegar aquí." },
+    { ruta: ["pagos", "redis"], et: "pago:idem SET NX", t: "Idempotencia", x: "Si la clave ya existe, se devuelve el mismo pago en lugar de crear otro." },
+    { ruta: ["pagos", "pg"], et: "registrar_pago()", t: "Pago y estado del pedido, juntos",
+      x: "Inserta en <code>pagos.pagos</code> y cambia <code>pedidos.pedidos.estado</code> a <code>pagado</code> en la misma transacción. pagos-ms no llama a pedidos-ms." },
+    { ruta: VUELTA("pagos"), et: "201 pagado", m: "ok", t: "Compra terminada",
+      x: "Cuatro servicios (Login, Books, Pedidos, Pagos), una sola dirección pública y un token validado en un solo punto de entrada." },
+  ]},
+  { nombre: "Books × 3", modo: "propuesta", pasos: [
+    { ruta: ["cli", "rp", "gw", "lb", "b1"], et: "GET /api/books #1", t: "Round Robin: petición 1 → Books 1",
+      x: "Round Robin reparte en turno. Funciona porque libros-ms no guarda estado en memoria: no hace falta afinidad de sesión.",
+      c: "upstream libros {\n  least_conn;\n  server libros-1:8000 max_fails=3 fail_timeout=10s;\n  server libros-2:8000 max_fails=3 fail_timeout=10s;\n  server libros-3:8000 max_fails=3 fail_timeout=10s;\n}" },
+    { ruta: ["cli", "rp", "gw", "lb", "b2"], et: "GET /api/books #2", t: "Petición 2 → Books 2", x: "La siguiente va a la segunda copia." },
+    { ruta: ["cli", "rp", "gw", "lb", "b3"], et: "GET /api/books #3", t: "Petición 3 → Books 3",
+      x: "Preferimos <code>least_conn</code>: una respuesta del caché tarda milisegundos y una que va a PostgreSQL, más." },
+    { ruta: ["lb", "b3"], et: "GET /health ✗", m: "error", caidos: ["b3"], t: "Books 3 falla el health check",
+      x: "El load balancer consulta <code>GET /health</code>, que revisa PostgreSQL y Redis. Tras tres fallos, Books 3 sale de la rotación." },
+    { ruta: ["cli", "rp", "gw", "lb", "b1"], et: "GET /api/books #4", caidos: ["b3"], t: "Petición 4 → Books 1, no Books 3",
+      x: "El cliente no se entera. Cuando Books 3 vuelva a responder, el health check lo reincorpora solo." },
+    { ruta: VUELTA("b1"), et: "200 XML", m: "ok", caidos: ["b3"], t: "Escalabilidad horizontal",
+      x: "Para aguantar más tráfico se agregan copias al upstream; ni el cliente ni el gateway cambian." },
+  ]},
+  { nombre: "Pedidos caído", modo: "propuesta", pasos: [
+    { ruta: ["lb", "pedidos"], et: "GET /health ✗", m: "error", caidos: ["pedidos"], t: "pedidos-ms deja de responder",
+      x: "El health check falla y el load balancer marca su upstream sin instancias sanas." },
+    { ruta: ["cli", "rp", "gw", "lb"], et: "POST /api/orders", caidos: ["pedidos"], t: "Una petición de pedido llega",
+      x: "El token es válido; el gateway la deja pasar al load balancer, que no tiene a quién entregarla." },
+    { ruta: ["lb", "gw", "rp", "cli"], et: "503 Retry-After: 5", m: "error", caidos: ["pedidos"], t: "Falla rápida y clara",
+      x: "El cliente recibe 503 con <code>Retry-After</code> al instante, en lugar de esperar un timeout. La app puede mostrar «Pedidos no disponible, intenta en unos segundos».",
+      c: "HTTP/1.1 503 Service Unavailable\nRetry-After: 5\nContent-Type: application/json\n\n{\"error\":\"pedidos no disponible\"}" },
+    { ruta: ["cli", "rp", "gw", "lb", "b1"], et: "GET /api/books", caidos: ["pedidos"], t: "El resto sigue funcionando",
+      x: "Login, Books, Users y Autores no dependen de pedidos-ms: la falla queda aislada." },
+    { ruta: ["cli", "rp", "gw", "lb", "pagos"], et: "POST /api/payments", caidos: ["pedidos"], t: "Incluso se pueden pagar pedidos ya creados",
+      x: "pagos-ms valida el pedido con un SELECT sobre <code>pedidos.pedidos</code> en PostgreSQL, no con una llamada HTTP a pedidos-ms." },
+    { ruta: ["pagos", "pg"], et: "registrar_pago()", m: "ok", caidos: ["pedidos"], t: "Sin datos a medias",
+      x: "Como crear un pedido es una sola transacción, ninguno quedó a medias cuando el servicio cayó. Mejora: dos instancias de Pedidos detrás del load balancer." },
+  ]},
+  { nombre: "Token revocado", modo: "propuesta", pasos: [
+    { ruta: ["auth", "redis"], et: "SET jwt:revoked:<jti>", t: "El usuario cerró sesión",
+      x: "Con <code>POST /logout</code>, auth-ms escribe <code>jwt:revoked:&lt;jti&gt;</code> con el TTL que le quedaba al token." },
+    { ruta: IDA, et: "POST /api/orders", t: "Alguien reusa el token viejo", x: "La firma sigue siendo válida y todavía no expira." },
+    { ruta: ["gw", "redis"], et: "jwt:revoked:<jti> = 1", m: "error", t: "El gateway lo detecta", x: "La consulta de revocación encuentra el jti." },
+    { ruta: ["gw", "rp", "cli"], et: "401 Unauthorized", m: "error", t: "Se rechaza en la entrada",
+      x: "La petición nunca llega a pedidos-ms. Si Redis no respondiera, el gateway devolvería 503: un control de seguridad no debe fallar abierto.",
+      c: "HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer error=\"invalid_token\"" },
+  ]},
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const el = (tag, attrs = {}, padre) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (padre) padre.appendChild(n);
+  return n;
+};
+let escena = 0, paso = 0, reproduciendo = false, cuadro = null, espera = null;
+const svgNodos = {};
+
+function dibujarModo(modo) {
+  const M = MODOS[modo];
+  ["zonas", "aristas", "nodos", "vivas"].forEach(id => { $(id).textContent = ""; });
+  for (const [txt, x] of M.zonas) {
+    el("text", { x, y: 448, class: "zona" }, $("zonas")).textContent = txt;
+  }
+  el("line", { x1: 160, y1: 30, x2: 160, y2: 432, class: "zona-linea" }, $("zonas"));
+  el("line", { x1: 605, y1: 30, x2: 605, y2: 432, class: "zona-linea" }, $("zonas"));
+  el("line", { x1: 840, y1: 30, x2: 840, y2: 432, class: "zona-linea" }, $("zonas"));
+  for (const [a, b] of M.aristas) {
+    el("polyline", { points: tramo(a, b).map(p => p.join(",")).join(" "), class: "arista" }, $("aristas"));
+  }
+  for (const id of M.nodos) {
+    const n = NODOS[id];
+    const g = el("g", { class: `nodo k-${n.k}` }, $("nodos"));
+    if (n.k === "datos") {
+      const r = 9;
+      el("path", { class: "forma", d: `M${n.x},${n.y + r} a${n.w / 2},${r} 0 0 1 ${n.w},0 v${n.h - 2 * r} a${n.w / 2},${r} 0 0 1 ${-n.w},0 z` }, g);
+      el("path", { class: "forma", d: `M${n.x},${n.y + r} a${n.w / 2},${r} 0 0 0 ${n.w},0`, fill: "none" }, g);
+    } else {
+      const rx = n.k === "cliente" ? 32 : n.k === "infra" ? 3 : 9;
+      el("rect", { class: "forma", x: n.x, y: n.y, width: n.w, height: n.h, rx }, g);
+    }
+    const cx = n.x + n.w / 2;
+    const lineas = (n.x2 || []).length;
+    const alto = n.s ? 16 : 0;
+    let y = n.y + n.h / 2 - (lineas * 14 + alto) / 2 + 4 + (n.k === "datos" ? 4 : 0);
+    el("text", { x: cx, y }, g).textContent = n.t;
+    if (n.s) { y += 15; el("text", { x: cx, y, class: "sub" }, g).textContent = n.s; }
+    for (const linea of n.x2 || []) { y += 14; el("text", { x: cx, y, class: "sub" }, g).textContent = linea; }
+    const tache = el("g", { visibility: "hidden" }, g);
+    el("line", { x1: n.x + n.w - 18, y1: n.y + 6, x2: n.x + n.w - 6, y2: n.y + 18, class: "tache" }, tache);
+    el("line", { x1: n.x + n.w - 6, y1: n.y + 6, x2: n.x + n.w - 18, y2: n.y + 18, class: "tache" }, tache);
+    svgNodos[id] = { g, tache };
+  }
+}
+
+const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
+function tramo(a, b) {
+  const A = NODOS[a], B = NODOS[b];
+  const esBooks = (id) => /^b\d$/.test(id);
+  const esDato = (id) => id === "redis" || id === "pg";
+  if ((a === "gw" && b === "redis") || (a === "redis" && b === "gw")) {
+    const p = [[390, 120], [390, 18], [920, 18], [920, 110]];
+    return a === "gw" ? p : p.reverse();
+  }
+  if ((esBooks(a) && esDato(b)) || (esDato(a) && esBooks(b))) {
+    const s = esBooks(a) ? A : B, d = esBooks(a) ? B : A;
+    const cx = s.x + s.w / 2;
+    const p = [[cx, s.y], [cx, 93], [845, 93], [d.x, d.y + d.h / 2]];
+    return esBooks(a) ? p : p.reverse();
+  }
+  if ((esBooks(a) && b === "lb") || (a === "lb" && esBooks(b))) {
+    const s = esBooks(a) ? A : B;
+    const cx = s.x + s.w / 2;
+    const p = [[cx, s.y + s.h], [cx, 153], [600, 153], [590, 153]];
+    return esBooks(a) ? p : p.reverse();
+  }
+  if (B.x >= A.x + A.w) {
+    const y0 = limitar(B.y + B.h / 2, A.y + 10, A.y + A.h - 10);
+    const y1 = limitar(y0, B.y + 10, B.y + B.h - 10);
+    return [[A.x + A.w, y0], [B.x, y1]];
+  }
+  if (B.x + B.w <= A.x) {
+    const y0 = limitar(B.y + B.h / 2, A.y + 10, A.y + A.h - 10);
+    const y1 = limitar(y0, B.y + 10, B.y + B.h - 10);
+    return [[A.x, y0], [B.x + B.w, y1]];
+  }
+  return [[A.x + A.w / 2, A.y + A.h], [B.x + B.w / 2, B.y]];
+}
+function puntos(ruta) {
+  const pts = [];
+  for (let i = 0; i < ruta.length - 1; i++) {
+    const t = tramo(ruta[i], ruta[i + 1]);
+    pts.push(...t);
+  }
+  return pts;
+}
+
+function pintarPaso() {
+  const E = ESCENAS[escena], P = E.pasos[paso];
+  $("num").textContent = `${E.nombre} · paso ${paso + 1} de ${E.pasos.length}`;
+  $("titulo").textContent = P.t;
+  $("texto").innerHTML = P.x;
+  $("codigo").textContent = P.c || "";
+  $("progreso").max = E.pasos.length - 1;
+  $("progreso").value = paso;
+  const caidos = new Set(P.caidos || []);
+  const activos = new Set(P.ruta || []);
+  for (const [id, n] of Object.entries(svgNodos)) {
+    n.g.classList.toggle("caido", caidos.has(id));
+    n.g.classList.toggle("activo", activos.has(id) && !caidos.has(id));
+    n.tache.setAttribute("visibility", caidos.has(id) ? "visible" : "hidden");
+  }
+  animar(P);
+}
+
+function animar(P) {
+  cancelAnimationFrame(cuadro); clearTimeout(espera);
+  $("vivas").textContent = "";
+  const paquete = $("paquete");
+  if (!P.ruta || P.ruta.length < 2) { paquete.setAttribute("visibility", "hidden"); programarSiguiente(); return; }
+  const pts = puntos(P.ruta);
+  el("polyline", { points: pts.map(p => p.join(",")).join(" "), class: "viva" + (P.m === "error" ? " error" : "") }, $("vivas"));
+  const largos = [];
+  let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    largos.push(l); total += l;
+  }
+  const txt = paquete.querySelector("text"), rect = paquete.querySelector("rect");
+  txt.textContent = P.et || "";
+  const ancho = Math.max(40, (P.et || "").length * 6.7 + 12);
+  rect.setAttribute("width", ancho); rect.setAttribute("x", -ancho / 2);
+  paquete.setAttribute("class", P.m || "");
+  paquete.setAttribute("visibility", "visible");
+  const vel = parseFloat($("velocidad").value);
+  const reducido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const duracion = reducido ? 1 : Math.max(700, total / (0.26 * vel));
+  const inicio = performance.now();
+  const paso_ = (ahora) => {
+    const f = Math.min(1, (ahora - inicio) / duracion);
+    let d = f * total, i = 0;
+    while (i < largos.length - 1 && d > largos[i]) { d -= largos[i]; i++; }
+    const u = largos[i] ? d / largos[i] : 1;
+    const x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u;
+    const y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u;
+    paquete.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+    if (f < 1) cuadro = requestAnimationFrame(paso_); else programarSiguiente();
+  };
+  cuadro = requestAnimationFrame(paso_);
+}
+
+function programarSiguiente() {
+  if (!reproduciendo) return;
+  const vel = parseFloat($("velocidad").value);
+  espera = setTimeout(() => {
+    if (paso < ESCENAS[escena].pasos.length - 1) { paso++; pintarPaso(); }
+    else { alternar(false); }
+  }, 2200 / vel);
+}
+
+function alternar(valor) {
+  reproduciendo = valor;
+  $("reproducir").textContent = reproduciendo ? "❚❚ Pausa" : "▶ Reproducir";
+  if (reproduciendo) {
+    if (paso >= ESCENAS[escena].pasos.length - 1) { paso = 0; }
+    pintarPaso();
+  } else { clearTimeout(espera); }
+}
+
+function irEscena(i) {
+  escena = i; paso = 0;
+  [...$("escenas").children].forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+  dibujarModo(ESCENAS[i].modo);
+  pintarPaso();
+}
+function mover(delta) {
+  const n = ESCENAS[escena].pasos.length;
+  paso = limitar(paso + delta, 0, n - 1);
+  pintarPaso();
+}
+
+ESCENAS.forEach((E, i) => {
+  const b = document.createElement("button");
+  b.textContent = E.nombre;
+  b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", () => { alternar(false); irEscena(i); });
+  $("escenas").appendChild(b);
+});
+$("anterior").addEventListener("click", () => { alternar(false); mover(-1); });
+$("siguiente").addEventListener("click", () => { alternar(false); mover(1); });
+$("reproducir").addEventListener("click", () => alternar(!reproduciendo));
+$("progreso").addEventListener("input", (e) => { alternar(false); paso = Number(e.target.value); pintarPaso(); });
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("select, input")) return;
+  if (e.key === "ArrowRight") { alternar(false); mover(1); }
+  else if (e.key === "ArrowLeft") { alternar(false); mover(-1); }
+  else if (e.key === " ") { e.preventDefault(); alternar(!reproduciendo); }
+});
+irEscena(0);
+</script>
+</body>
+</html>
