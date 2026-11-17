@@ -1,0 +1,13 @@
+# Limite de ritmo en /api/login: 5 r/s por IP, rafaga de 10
+# Generado: 2026-11-17T17:18:21-06:00 -- scripts/evidencias.py
+
+# 25 peticiones a la vez desde la misma IP (el gateway toma la IP real de CF-Connecting-IP).
+
+# Resumen: HTTP 200 x16, HTTP 429 x9
+
+<<< HTTP/1.1 429 Too Many Requests (una de las rechazadas)
+    Content-Type: application/json
+    Retry-After: 1
+    Server: cloudflare
+
+    {"error":"demasiadas peticiones","origen":"api-gateway"}

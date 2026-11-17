@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reporte 14 · API gateway con nginx</title>
+  <link rel="stylesheet" href="../../styles/report.css">
+  <style>
+    .decision { margin: 18px 0; padding-left: 16px; border-left: 3px solid var(--line); }
+    .decision h3 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 750; }
+    .decision p { margin: 0; font-size: 0.78rem; color: var(--muted); }
+    .aviso { margin: 18px 0; padding: 14px 17px; border-left: 3px solid var(--violet); background: var(--soft); font-size: 0.78rem; }
+    .aviso strong { color: var(--accent-dark); }
+    .indice { margin: 20px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 34px; font-size: 0.76rem; }
+    .indice li { padding: 4px 0; break-inside: avoid; }
+    .indice a { color: var(--muted); text-decoration: none; }
+    .indice a:hover { color: var(--accent-dark); }
+    pre.terminal { white-space: pre-wrap; word-break: break-all; font-size: 0.66rem; line-height: 1.5; }
+    @media (max-width: 650px) { .indice { columns: 1; } }
+    @media print { .indice { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page-tools" aria-label="Acciones del documento">
+    <a href="../../index.html">← Volver al portafolio</a>
+    <button type="button" onclick="window.print()">Imprimir / guardar PDF</button>
+  </div>
+
+  <main class="report-document">
+
+    <header class="report-header">
+      <div class="course-line">
+        <span>Universidad de Monterrey</span>
+        <span>Integración de Aplicaciones Computacionales · 2026</span>
+      </div>
+      <p class="report-kicker">Reporte de actividad · 14 · API gateway</p>
+      <h1>Una sola puerta<br>para todo Library, <em>con nginx.</em></h1>
+      <p class="report-lead">Hasta ahora cada pieza de Library tenía su propia dirección: el monolito en el puerto 3000 y seis microservicios, cada uno con su hostname. Ahora un nginx funciona a la vez como reverse proxy, balanceador y API gateway, y atiende en un solo lugar: enruta por prefijo, reparte las lecturas del catálogo entre dos instancias, rechaza antes de llegar al servicio las peticiones que no traen JWT y limita el ritmo del login.</p>
+      <div class="header-tags">
+        <span>nginx</span><span>Reverse proxy</span><span>Load balancer</span><span>API gateway</span><span>JWT</span><span>Docker</span><span>Cloudflare Tunnel</span><span>Raspberry Pi</span>
+      </div>
+      <ul class="indice">
+        <li><a href="#s1">01 · Objetivo y alcance</a></li>
+        <li><a href="#s2">02 · Arquitectura y tabla de rutas</a></li>
+        <li><a href="#s3">03 · Qué hace el gateway y qué los servicios</a></li>
+        <li><a href="#s4">04 · Decisiones de ingeniería</a></li>
+        <li><a href="#s5">05 · Evidencia</a></li>
+        <li><a href="#s6">06 · Despliegue y límites</a></li>
+      </ul>
+    </header>
+
+    <section id="s1">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Objetivo y alcance</h2>
+        <p>En la actividad 12 se investigó la diferencia entre reverse proxy, load balancer y API gateway, y se diseñó una entrada única para Library (<a href="../12/animacion/">animación</a>). Esta actividad lo lleva a la práctica sobre el despliegue real: el monolito del ejercicio 02 y los seis servicios del ejercicio 09 (auth, libros, users, authors, pedidos y pagos), que ya corrían en la Raspberry Pi.</p>
+        <p>La tabla de rutas es la propuesta en clase: un prefijo por servicio, dos instancias de Libros, el login público y el resto protegido con JWT. También se cubre el requisito avanzado, que el gateway rechace antes de que la petición llegue al servicio.</p>
+        <p><strong>Restricción:</strong> no se cambió el código del monolito ni el de ej09. El gateway llega a todos por la red Docker <code>services</code>, en la que ya estaban. El único cambio fuera de la carpeta nueva es de despliegue: el monolito dejó de publicar el puerto 3000 hacia la red local (sección 06).</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Arquitectura y tabla de rutas</h2>
+        <pre><code>  Internet ── https://api.maxthecoder.online ── Cloudflare Tunnel ─┐
+  Red local ── http://&lt;ip-del-pi&gt;:80 ─────────────────────────────┤
+                                                                   ▼
+                                                 api-gateway (nginx :80)
+     /              ──► libreria-app-1:3000       (monolito)
+     /api/login     ──► auth-ms-redis:8000
+     /api/books     ──► libros-ms-redis:8000   ┐ least_conn
+                    ──► libros-ms-redis-2:8000 ┘ (instancia nueva)
+     /api/pagos     ──► pagos-ms:8000
+     /api/pedidos   ──► pedidos-ms:8000
+     /api/users     ──► users-ms:8000
+     /api/autores   ──► authors-ms:8000</code></pre>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prefijo</th><th>Servicio</th><th>Instancias (clase → real)</th><th>Reescritura</th><th>Acceso</th></tr></thead>
+            <tbody>
+              <tr><td><code>/</code></td><td>Monolito</td><td>:3000 → <code>libreria-app-1</code></td><td>—</td><td>Público</td></tr>
+              <tr><td><code>/api/login</code></td><td>Login</td><td>:5000 → <code>auth-ms-redis</code></td><td><code>/login</code>; <code>/api/login/X</code> → <code>/X</code></td><td>Público</td></tr>
+              <tr><td><code>/api/books</code></td><td>Libros</td><td>:5001, :6001 → <code>libros-ms-redis</code>, <code>libros-ms-redis-2</code></td><td><code>/books…</code></td><td>GET público; escritura con JWT</td></tr>
+              <tr><td><code>/api/pagos</code></td><td>Pagos</td><td>:5002 → <code>pagos-ms</code></td><td><code>/payments…</code></td><td>JWT</td></tr>
+              <tr><td><code>/api/pedidos</code></td><td>Pedidos</td><td>:5003 → <code>pedidos-ms</code></td><td><code>/orders…</code></td><td>JWT</td></tr>
+              <tr><td><code>/api/users</code></td><td>Usuarios</td><td>:5004 → <code>users-ms</code></td><td><code>/users…</code></td><td>JWT</td></tr>
+              <tr><td><code>/api/autores</code></td><td>Autores</td><td>:5005 → <code>authors-ms</code></td><td><code>/authors…</code></td><td>JWT</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Los servicios del ejercicio 09 exponen sus rutas en inglés, así que el gateway reescribe el prefijo y conserva el resto de la ruta y la query: <code>/api/pedidos/7?format=json</code> llega a pedidos-ms como <code>/orders/7?format=json</code>. Por <code>/api/login/…</code> también se llega al resto de auth-ms (<code>register</code>, <code>refresh</code>, <code>logout</code>, <code>session</code>). Cualquier otro <code>/api/…</code> recibe un 404 del gateway y no cae al monolito.</p>
+      </div>
+    </section>
+
+    <section id="s3" class="page-break-before">
+      <div class="section-number">03</div>
+      <div>
+        <h2>Qué hace el gateway y qué los servicios</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Papel</th><th>En nginx</th></tr></thead>
+            <tbody>
+              <tr><td>Reverse proxy</td><td>Una sola dirección, oculta puertos y versión (<code>server_tokens off</code>), límite de cuerpo de 10 MB, cabeceras <code>X-Forwarded-*</code> y un <code>X-Request-ID</code> por petición. Si un servicio no responde, contesta 503 en JSON con <code>Retry-After</code>.</td></tr>
+              <tr><td>Load balancer</td><td>Upstream de Libros con dos servidores y <code>least_conn</code>, health check pasivo (<code>max_fails=1 fail_timeout=10s</code>) y reintento de las lecturas en la otra instancia.</td></tr>
+              <tr><td>API gateway</td><td>Enrutamiento por prefijo con reescritura, rechazo temprano sin <code>Authorization: Bearer</code>, <code>limit_req</code> en el login (5 r/s por IP, ráfaga de 10) y un log JSON por petición con la instancia que respondió.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Rechazo temprano.</strong> Un <code>map</code> de nginx decide, a partir del método y de si hay <code>Bearer</code>, qué peticiones se cortan: en pagos, pedidos, users y autores todas menos el <em>preflight</em> CORS (<code>OPTIONS</code>); en books, las que no son lecturas. El 401 lo responde el propio gateway con <code>"origen":"api-gateway"</code> y <code>WWW-Authenticate: Bearer</code>, y en el log se ve que no hubo upstream.</p>
+        <p><strong>Defensa en profundidad.</strong> El gateway solo comprueba que el token exista. La firma HS256, la expiración, el emisor, la audiencia, la revocación por <code>jti</code> en Redis y el rol admin los sigue validando cada servicio (<code>comun/jwt_util.py</code>). Un <code>Bearer basura</code> pasa el gateway y lo rechaza el servicio. Así, si alguien llegara a un servicio sin pasar por el gateway, seguiría protegido.</p>
+      </div>
+    </section>
+
+    <section id="s4" class="page-break-before">
+      <div class="section-number">04</div>
+      <div>
+        <h2>Decisiones de ingeniería</h2>
+        <div class="decision">
+          <h3>least_conn sin afinidad de sesión</h3>
+          <p>libros-ms no guarda estado en memoria: el JWT se valida localmente y la caché <code>books:*</code> está en Redis, compartida por las dos instancias, así que una invalidación llega a ambas. No hace falta <code>ip_hash</code>. Se eligió <code>least_conn</code> en lugar de Round Robin porque una respuesta con caché tarda mucho menos que una sin ella.</p>
+        </div>
+        <div class="decision">
+          <h3>La segunda instancia sin copiar nada</h3>
+          <p><code>libros-ms-2</code> hereda con <code>extends</code> el servicio <code>libros-ms</code> del compose de ej09: entorno, volúmenes, healthcheck y redes. Usa la misma imagen ya construida y solo cambia el nombre del contenedor y el puerto local. Las variables salen del <code>.env</code> de ej09, así que no hay una segunda copia de los secretos.</p>
+        </div>
+        <div class="decision">
+          <h3>Las pruebas encontraron un 503 al tumbar una instancia</h3>
+          <p>Con <code>max_fails=2</code>, al detener <code>libros-ms-redis-2</code> una de las primeras lecturas devolvía 503. Una IP de contenedor que ya no existe no rechaza la conexión, la deja colgada hasta el timeout de 3 s. La primera petición fallida se reintentaba bien en la otra instancia, pero la que llegaba al límite de fallos no. Con <code>max_fails=1</code> y <code>proxy_connect_timeout 1s</code> en Libros, solo la primera lectura tras la caída tarda ~1 s, se reintenta en la otra instancia y responde 200; las demás ya no intentan la caída durante 10 s. Solo se reintentan lecturas: repetir un POST podría aplicarlo dos veces.</p>
+        </div>
+        <div class="decision">
+          <h3>Resolver los nombres en tiempo de ejecución</h3>
+          <p>Los upstream usan <code>server … resolve</code> con el DNS interno de Docker. Si un contenedor se recrea y cambia de IP, nginx la toma sin reiniciar. Si un servicio no existe al arrancar el gateway, nginx arranca igual y esa ruta responde 503 hasta que el servicio se levante.</p>
+        </div>
+        <div class="decision">
+          <h3>La IP real detrás del túnel</h3>
+          <p>Lo que llega desde Internet entra por el contenedor de cloudflared, así que para nginx todas las peticiones públicas venían de la misma IP: el límite de ritmo del login era uno solo para todo el mundo. Con <code>real_ip_header CF-Connecting-IP</code>, en el que solo se confía si la conexión viene de la red Docker, cada cliente tiene su propio límite y su IP en el log.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="s5" class="page-break-before">
+      <div class="section-number">05</div>
+      <div>
+        <h2>Evidencia</h2>
+        <p>Transcripciones generadas con <code>scripts/evidencias.py</code> contra el despliegue público (<code>https://api.maxthecoder.online</code>). El JWT, el refresh token y la contraseña aparecen recortados. <code>X-Upstream</code> es la IP y el puerto del contenedor que respondió.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Archivo</th><th>Qué demuestra</th></tr></thead>
+            <tbody>
+              <tr><td><a href="curl/01_rutas.txt"><code>01_rutas.txt</code></a></td><td><code>/</code> llega al monolito (:3000) y <code>/api/books</code> a libros-ms; <code>/api/autores</code> sin token y <code>/api/nada</code> los responde el gateway.</td></tr>
+              <tr><td><a href="curl/02_jwt.txt"><code>02_jwt.txt</code></a></td><td>Login por <code>/api/login</code>; 401 del gateway sin token; 401 del servicio con un token inválido; 200 en pedidos, pagos, users y autores con el JWT del admin.</td></tr>
+              <tr><td><a href="curl/03_balanceo_y_caida.txt"><code>03_balanceo_y_caida.txt</code></a></td><td>Seis lecturas alternando entre las dos instancias; con una detenida, todas siguen en 200 y una muestra el reintento (<code>X-Upstream</code> con dos direcciones).</td></tr>
+              <tr><td><a href="curl/04_limite_de_ritmo.txt"><code>04_limite_de_ritmo.txt</code></a></td><td>25 peticiones simultáneas al login: 16 pasan y 9 reciben 429 del gateway.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Además, <code>scripts/run-tests.sh</code> (solo biblioteca estándar de Python) cubre cada fila de la tabla, el 401 temprano y el del servicio, el preflight, el 404, el reparto entre instancias, la conmutación y el 429. La última corrida pasó completa:</p>
+        <pre class="terminal"><code>== /api/books -&gt; libros-ms x2 ==
+  [OK] GET /api/books sin token: 200
+  [OK] POST /api/books sin token -&gt; 401 del gateway: (401, True)
+  [OK] POST /api/books Bearer basura -&gt; 401 del servicio: (401, False)
+  [OK] lecturas repartidas en 2 instancias: 2
+== Rutas con JWT ==
+  [OK] GET /api/pedidos sin token -&gt; 401 del gateway: (401, True)
+  [OK] GET /api/pedidos Bearer basura -&gt; 401 del servicio: (401, False)
+  [OK] GET /api/pedidos con JWT de admin: 200
+  …
+== Conmutacion: libros-ms-redis-2 detenida ==
+  [OK] 8 GET /api/books siguen en 200: {200}
+  [OK] libros-ms-redis-2 vuelve a healthy: True
+== Limite de ritmo en /api/login (5 r/s, burst 10) ==
+  [OK] 30 peticiones seguidas producen algun 429: True
+
+Todo bien</code></pre>
+      </div>
+    </section>
+
+    <section id="s6">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Despliegue y límites</h2>
+        <p>Todo corre en la Raspberry Pi: <code>api-gateway</code> (imagen <code>nginx:1.27-alpine</code>) publicado en el puerto 80 para la red local y <code>libros-ms-redis-2</code> solo en <code>127.0.0.1</code>. Desde Internet se entra por el túnel de Cloudflare con el hostname <code>api.maxthecoder.online</code>, que apunta a <code>api-gateway:80</code> y se dio de alta con <code>scripts/cloudflare-hostnames.py</code>. <code>scripts/deploy.sh</code> valida la configuración, levanta los dos contenedores, espera a que estén sanos y hace una prueba rápida.</p>
+        <p>Para que el gateway sea de verdad la única entrada, el monolito ahora publica su puerto solo en <code>127.0.0.1:3000</code>: desde otra máquina ya no se llega directo a Node, solo por el gateway o por el túnel.</p>
+        <div class="aviso"><strong>Autores y el JWT.</strong> La tabla pide JWT en <code>/api/autores</code> y el gateway exige el <code>Bearer</code>, pero authors-ms deja leer sin token desde el ejercicio 09. Como el gateway no valida la firma, un GET de autores con un token inválido responde 200; en las escrituras, el servicio sí lo rechaza. Cerrarlo requiere cambiar authors-ms o validar la firma en el gateway.</div>
+        <p><strong>Otros límites:</strong> el gateway no valida la firma del JWT; para hacerlo haría falta njs o un <code>auth_request</code> a un endpoint de validación que auth-ms no tiene. El health check es pasivo, porque nginx sin licencia comercial no hace sondeos activos. En la red local el puerto 80 es HTTP plano; el TLS solo lo pone Cloudflare en el acceso público. Pedidos, pagos y el resto siguen con una sola instancia.</p>
+        <p>Código: <code>deploy-iac/ejercicio-14</code> — <code>nginx/gateway.conf</code>, <code>docker-compose.yml</code> y <code>scripts/</code>.</p>
+      </div>
+    </section>
+
+    <footer class="report-footer">
+      <span>Actividad basada en la consigna del curso</span>
+    </footer>
+  </main>
+</body>
+</html>

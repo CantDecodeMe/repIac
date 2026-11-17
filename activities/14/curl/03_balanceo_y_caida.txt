@@ -1,0 +1,112 @@
+# Dos instancias de libros-ms: reparto y conmutacion
+# Generado: 2026-11-17T17:18:15-06:00 -- scripts/evidencias.py
+
+# Seis lecturas seguidas: X-Upstream alterna entre las dos instancias (least_conn).
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.38:8000
+    X-Request-ID: 271a32c9e49cc352c9156f18520112ba
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: 3e38c0e79df177c166a1c37aadc79f71
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.38:8000
+    X-Request-ID: 0c8e4b8622986eae2a49ddb9e6f45eed
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: ac5afa36906d77e0ea528af6c48b1ae5
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.38:8000
+    X-Request-ID: 7d7e9cb3ddd9115ec4b66cc0fb695b5a
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: b7e65d2a9269f740eb9f532d8e843485
+    Server: cloudflare
+
+# $ docker stop libros-ms-redis-2
+
+# Con una instancia caida todas las lecturas siguen en 200; la primera tarda ~1 s (proxy_connect_timeout) y se reintenta en la otra.
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.38:8000, 172.20.0.30:8000
+    X-Request-ID: 88dc4979a3a5f6dd5a4a194d4f17029e
+    Server: cloudflare
+    (tiempo: 1.14 s)
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: b0bbef6d9ae762107718c5d4bcfc07d0
+    Server: cloudflare
+    (tiempo: 0.16 s)
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: 073ed9ee3019a956252671fc2408010f
+    Server: cloudflare
+    (tiempo: 0.15 s)
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: 5517618e2c8701d97232f3fe59dd1543
+    Server: cloudflare
+    (tiempo: 0.15 s)
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: ad2f12485d8a87e4f970341ed49933d9
+    Server: cloudflare
+    (tiempo: 0.14 s)
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: 0d253d472f1e91e1dace2c9b350ecb3a
+    Server: cloudflare
+    (tiempo: 0.16 s)
+
+# $ docker start libros-ms-redis-2

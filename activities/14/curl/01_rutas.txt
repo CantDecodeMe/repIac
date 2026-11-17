@@ -1,0 +1,51 @@
+# Una sola entrada: cada prefijo llega a su servicio
+# Generado: 2026-11-17T17:18:13-06:00 -- scripts/evidencias.py
+
+# X-Upstream es la IP:puerto del contenedor que contesto (red Docker `services`).
+
+>>> GET https://api.maxthecoder.online/gateway/health
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Request-ID: 83ff832f0ffe824230bb0a70f05916c2
+    Server: cloudflare
+
+    {"estado":"ok","servicio":"api-gateway"}
+
+>>> HEAD https://api.maxthecoder.online/
+
+<<< HTTP/1.1 200 OK
+    Content-Type: text/html; charset=utf-8
+    X-Upstream: 172.20.0.4:3000
+    X-Request-ID: 6b833b42f76ffd32650e57871c0240a2
+    Server: cloudflare
+
+>>> GET https://api.maxthecoder.online/api/books?limit=1
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/xml; charset=utf-8
+    X-Upstream: 172.20.0.30:8000
+    X-Request-ID: 9f12ad5f81e689129422a679cf45e1f6
+    Server: cloudflare
+
+    <?xml version="1.0" encoding="UTF-8"?>
+<books total="11" page="1" per_page="8"><book><isbn>978-0307474728</isbn><title>Cien años de soledad</title><descripcion>La saga de la familia Buendía en el mítico pueblo de Macondo.</descripcion><genero>Ficción</genero><formato>Fisico</formato><editorial>Alfaguara</editorial><year>1967</year><portada>https://libros-redis.maxthecoder.online/uploads/seed/porta ... (recortado)
+
+>>> GET https://api.maxthecoder.online/api/autores?format=json
+
+<<< HTTP/1.1 401 Unauthorized
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="api-gateway"
+    X-Request-ID: dfe80c0fcac3f09566836942d0f5a71f
+    Server: cloudflare
+
+    {"error":"se requiere un token Bearer","origen":"api-gateway"}
+
+>>> GET https://api.maxthecoder.online/api/nada
+
+<<< HTTP/1.1 404 Not Found
+    Content-Type: application/json
+    X-Request-ID: 3a296a78e96492f7c42dad175694faa5
+    Server: cloudflare
+
+    {"error":"ruta no encontrada en el gateway","origen":"api-gateway"}

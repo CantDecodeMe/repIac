@@ -1,0 +1,96 @@
+# JWT: rechazo temprano en el gateway y validacion en cada servicio
+# Generado: 2026-11-17T17:18:14-06:00 -- scripts/evidencias.py
+
+>>> POST https://api.maxthecoder.online/api/login?format=json
+    {"email": "admin@libreria.local", "password": "********"}
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Upstream: 172.20.0.27:8000
+    X-Request-ID: 5feaf8918a023d259a130d2944e34918
+    Server: cloudflare
+
+    {"email":"admin@libreria.local","expires_at":1794958694,"expires_in":1200,"nombre":"Admin","refresh_expires_in":604800,"refresh_token":"Z1Eakz7ZdsSxzA-e...(recortado)","role_id":1,"token":"eyJhbGciOiJIUzI1...(recortado)","token_type":"Bearer","usuario_id":19}
+
+# Sin Authorization: responde el gateway (origen api-gateway), el servicio no ve la peticion.
+
+>>> GET https://api.maxthecoder.online/api/pedidos?format=json
+
+<<< HTTP/1.1 401 Unauthorized
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="api-gateway"
+    X-Request-ID: 530efa963cff71aacb596aad23f05f02
+    Server: cloudflare
+
+    {"error":"se requiere un token Bearer","origen":"api-gateway"}
+
+>>> POST https://api.maxthecoder.online/api/books
+    {"isbn": "0000000000"}
+
+<<< HTTP/1.1 401 Unauthorized
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="api-gateway"
+    X-Request-ID: 3a6233ac96dfe24d07c486ddb5bfec4a
+    Server: cloudflare
+
+    {"error":"se requiere un token Bearer","origen":"api-gateway"}
+
+# Con un Bearer que no es un JWT valido: el gateway lo deja pasar y el servicio lo rechaza.
+
+>>> GET https://api.maxthecoder.online/api/pedidos?format=json
+    Authorization: Bearer basura
+
+<<< HTTP/1.1 401 Unauthorized
+    Content-Type: application/json
+    WWW-Authenticate: Bearer realm="pedidos-ms", error="invalid_token"
+    X-Upstream: 172.20.0.5:8000
+    X-Request-ID: 2beb8a5b3590259c451ab753dc24b215
+    Server: cloudflare
+
+    {"error":"El token no es valido."}
+
+# Con el JWT del admin: el servicio responde.
+
+>>> GET https://api.maxthecoder.online/api/pedidos?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1...(recortado)
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Upstream: 172.20.0.5:8000
+    X-Request-ID: a5dfa59023c8d078ef2212c0588c7a7a
+    Server: cloudflare
+
+    {"page":1,"pedidos":[{"actualizado_en":"2026-11-08T05:49:38.373219+00:00","articulos":1,"creado_en":"2026-11-08T05:46:12.864769+00:00","estado":"entregado","pedido_id":66,"total":"17.00","usuario_id":42}],"per_page":1,"total":17}
+
+>>> GET https://api.maxthecoder.online/api/pagos?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1...(recortado)
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Upstream: 172.20.0.35:8000
+    X-Request-ID: 10e208dfc835319fa077a0a8032e329d
+    Server: cloudflare
+
+    {"page":1,"pagos":[{"actualizado_en":"2026-11-08T05:46:30.291088+00:00","creado_en":"2026-11-08T05:46:30.291088+00:00","estado":"aprobado","metodo":"tarjeta","monto":"17.00","pago_id":51,"pedido_id":66,"referencia":"SIM-TAR-20261107-F73798","usuario_ ... (recortado)
+
+>>> GET https://api.maxthecoder.online/api/users?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1...(recortado)
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Upstream: 172.20.0.36:8000
+    X-Request-ID: 2f847c98321b6f4402e875c46336337c
+    Server: cloudflare
+
+    {"page":1,"per_page":1,"total":25,"usuarios":[{"activo":true,"apellido_materno":"Diaz","apellido_paterno":"Perez","creado_en":"2026-09-18T22:47:40.422883+00:00","email":"ana@example.com","nombre":"Ana","rol":"cliente","role_id":2,"usuario_id":1}]}
+
+>>> GET https://api.maxthecoder.online/api/autores?format=json&per_page=1
+    Authorization: Bearer eyJhbGciOiJIUzI1...(recortado)
+
+<<< HTTP/1.1 200 OK
+    Content-Type: application/json
+    X-Upstream: 172.20.0.2:8000
+    X-Request-ID: 6496a91146ad2f71aae2e5c7efb35175
+    Server: cloudflare
+
+    {"autores":[{"autor_id":8,"biografia":"Aviador y escritor franc\u00e9s, autor de El principito.","foto":"/uploads/seed/autor8.svg","nombre":"Antoine de Saint-Exup\u00e9ry","total_libros":1}],"page":1,"per_page":1,"total":9}
